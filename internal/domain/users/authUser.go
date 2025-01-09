@@ -31,5 +31,7 @@ func (au AuthUser) GetRegistrationAt() time.Time {
 //AuthUserRepository for managing AuthUser aggregate
 
 type AuthUserRepository interface {
-
+	GetAuthUserById(uuid.UUID) (AuthUser, error)
+	AddAuthUser(AuthUser) error 
+	UpdateAuthUser(uuid.UUID) error
 }
