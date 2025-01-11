@@ -12,6 +12,7 @@ type AuthUser struct {
 	registrationAt time.Time
 }
 
+
 func (au AuthUser) GetID() uuid.UUID {
 	return au.id
 }
@@ -27,6 +28,7 @@ func (au AuthUser) GetPassword() string {
 func (au AuthUser) GetRegistrationAt() time.Time {
 	return au.registrationAt
 }
+
 
 func NewAuthUser(login string, password string) AuthUser {
 	return AuthUser{
