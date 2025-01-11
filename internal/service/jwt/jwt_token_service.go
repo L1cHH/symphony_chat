@@ -1,8 +1,10 @@
 package service
 
 import (
+	"errors"
 	"symphony_chat/internal/domain/jwt"
 
+	JWT "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -70,4 +72,38 @@ func (js *JWTtokenService) GetNewPairTokens(userID uuid.UUID) ([2]jwt.JWTtoken, 
 	}
 
 	return [2]jwt.JWTtoken {accessToken, refreshToken}, nil
+}
+
+func (js *JWTtokenService) ValidateAccessToken(tokenString string) (uuid.UUID, error) {
+	token, err := JWT.Parse(tokenString, func(t *JWT.Token) (interface{}, error) {
+		if _, ok := t.Method.(*JWT.SigningMethodHMAC); !ok {
+			return nil, errors.New("wrong alg method in jwt token. So token cant be parsed")
+		}
+		return []byte("secretKey"), nil
+	})
+
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	if !token.Valid {
+		return uuid.Nil, errors.New("token is not valid")
+	}
+
+	claims, ok := token.Claims.(JWT.MapClaims)
+	if !ok {
+		return uuid.Nil, errors.New("invalid token claims format")
+	}
+
+	userIDStr, ok := claims["sub"].(string)
+	if !ok {
+		return uuid.Nil, errors.New("uncorrect format of sub claim, must be string")
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+    if err != nil {
+        return uuid.Nil, errors.New("invalid user ID format in token, must be uuid")
+    }
+
+	return userID, nil
 }
