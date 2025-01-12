@@ -2,8 +2,8 @@ package registration
 
 import (
 	"errors"
-	"symphony_chat/internal/domain/jwt"
 	"symphony_chat/internal/domain/users"
+	authdto "symphony_chat/internal/dto/auth"
 	jwtService "symphony_chat/internal/service/jwt"
 	utils "symphony_chat/utils/service"
 )
@@ -58,27 +58,27 @@ func WithJWTtokenService(jwtService jwtService.JWTtokenService) RegistrationConf
 	}
 }
 
-func (rs *RegistrationService) SignUpUser(userInput users.UserDTO) ([2]jwt.JWTtoken, error) {
+func (rs *RegistrationService) SignUpUser(userInput authdto.LoginCredentials) (authdto.AuthTokens, error) {
 
 	//Validation user input
 
 	if !utils.IsCorrectFormat(userInput.Login) || !utils.IsCorrectFormat(userInput.Password) {
-		return [2]jwt.JWTtoken{}, ErrUncorrectFormatLogin
+		return authdto.AuthTokens{}, ErrUncorrectFormatLogin
 	}
 
 	exists, err := rs.authUserRepo.IsUserExists(userInput.Login)
 	if err != nil {
-		return [2]jwt.JWTtoken{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
+		return authdto.AuthTokens{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
 	}
 
 	if exists {
-		return [2]jwt.JWTtoken{}, ErrLoginAlreadyExists
+		return authdto.AuthTokens{}, ErrLoginAlreadyExists
 	}
 
 	//Hashing password
 	hashedPassword, err := utils.HashPassword(userInput.Password)
 	if err != nil {
-		return [2]jwt.JWTtoken{}, errors.New(ErrHashingPassword.Error() + ": " + err.Error())
+		return authdto.AuthTokens{}, errors.New(ErrHashingPassword.Error() + ": " + err.Error())
 	}
 
 	//Creating AuthUser
@@ -87,13 +87,13 @@ func (rs *RegistrationService) SignUpUser(userInput users.UserDTO) ([2]jwt.JWTto
 	//Adding AuthUser to database
 	err = rs.authUserRepo.AddAuthUser(authUser)
 	if err != nil {
-		return [2]jwt.JWTtoken{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
+		return authdto.AuthTokens{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
 	}
 
 	//Creating pair of jwt tokens(access and refresh)
 	jwtTokens, err := rs.jwtService.GetNewPairTokens(authUser.GetID())
 	if err != nil {
-		return [2]jwt.JWTtoken{}, errors.New(ErrProblemWithJWT.Error() + ": " + err.Error())
+		return authdto.AuthTokens{}, errors.New(ErrProblemWithJWT.Error() + ": " + err.Error())
 	}
 
 	return jwtTokens, nil

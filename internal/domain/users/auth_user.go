@@ -2,16 +2,16 @@ package users
 
 import (
 	"time"
+
 	"github.com/google/uuid"
 )
 
 type AuthUser struct {
-	id uuid.UUID
-	login string
-	password string
+	id             uuid.UUID
+	login          string
+	password       string
 	registrationAt time.Time
 }
-
 
 func (au AuthUser) GetID() uuid.UUID {
 	return au.id
@@ -29,12 +29,11 @@ func (au AuthUser) GetRegistrationAt() time.Time {
 	return au.registrationAt
 }
 
-
 func NewAuthUser(login string, password string) AuthUser {
 	return AuthUser{
-		id: uuid.New(),
-		login: login,
-		password: password,
+		id:             uuid.New(),
+		login:          login,
+		password:       password,
 		registrationAt: time.Now(),
 	}
 }
@@ -43,8 +42,8 @@ func NewAuthUser(login string, password string) AuthUser {
 
 type AuthUserRepository interface {
 	GetAuthUserById(uuid.UUID) (AuthUser, error)
+	GetAuthUserByLogin(string) (AuthUser, error)
 	IsUserExists(login string) (bool, error)
-	AddAuthUser(AuthUser) error 
+	AddAuthUser(AuthUser) error
 	UpdateAuthUser(uuid.UUID) error
 }
-

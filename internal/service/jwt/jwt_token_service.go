@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"symphony_chat/internal/domain/jwt"
+	authdto "symphony_chat/internal/dto/auth"
 
 	JWT "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -34,7 +35,7 @@ func WithJWTtokenRepository(jt jwt.JwtRepository) JWTtokenConfiguration {
 	}
 }
 
-///Function for getting new access token
+// /Function for getting new access token
 func (js *JWTtokenService) GetUpdatedAccessToken(userID uuid.UUID) (jwt.JWTtoken, error) {
 	accessToken, err := jwt.NewJWT(userID, 15, 0, []byte("secretKey"))
 	if err != nil {
@@ -44,7 +45,7 @@ func (js *JWTtokenService) GetUpdatedAccessToken(userID uuid.UUID) (jwt.JWTtoken
 	return accessToken, nil
 }
 
-///Function for getting new refresh token
+// /Function for getting new refresh token
 func (js *JWTtokenService) GetUpdatedRefreshToken(userID uuid.UUID) (jwt.JWTtoken, error) {
 	refreshToken, err := jwt.NewJWT(userID, 0, 30, []byte("secretKey"))
 	if err != nil {
@@ -58,20 +59,23 @@ func (js *JWTtokenService) GetUpdatedRefreshToken(userID uuid.UUID) (jwt.JWTtoke
 	return refreshToken, nil
 }
 
-///Function that used when user again write login and password (when refresh token expires)
-///First is AccessToken, Second is RefreshToken
-func (js *JWTtokenService) GetNewPairTokens(userID uuid.UUID) ([2]jwt.JWTtoken, error) {
+// /Function that used when user again write login and password (when refresh token expires)
+// /First is AccessToken, Second is RefreshToken
+func (js *JWTtokenService) GetNewPairTokens(userID uuid.UUID) (authdto.AuthTokens, error) {
 	accessToken, err := js.GetUpdatedAccessToken(userID)
 	if err != nil {
-		return [2]jwt.JWTtoken{}, err
+		return authdto.AuthTokens{}, err
 	}
 
 	refreshToken, err := js.GetUpdatedRefreshToken(userID)
 	if err != nil {
-		return [2]jwt.JWTtoken{}, err
+		return authdto.AuthTokens{}, err
 	}
 
-	return [2]jwt.JWTtoken {accessToken, refreshToken}, nil
+	return authdto.AuthTokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
 func (js *JWTtokenService) ValidateAccessToken(tokenString string) (uuid.UUID, error) {
@@ -101,9 +105,9 @@ func (js *JWTtokenService) ValidateAccessToken(tokenString string) (uuid.UUID, e
 	}
 
 	userID, err := uuid.Parse(userIDStr)
-    if err != nil {
-        return uuid.Nil, errors.New("invalid user ID format in token, must be uuid")
-    }
+	if err != nil {
+		return uuid.Nil, errors.New("invalid user ID format in token, must be uuid")
+	}
 
 	return userID, nil
 }
