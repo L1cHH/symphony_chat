@@ -1,4 +1,4 @@
-package service
+package registration
 
 import (
 	"errors"
@@ -25,11 +25,10 @@ var (
 
 type RegistrationService struct {
 	authUserRepo users.AuthUserRepository
-	jwtService jwtService.JWTtokenService
+	jwtService   jwtService.JWTtokenService
 }
 
-type RegistrationConfiguration func(*RegistrationService) error 
-
+type RegistrationConfiguration func(*RegistrationService) error
 
 func NewResgistretionService(configs ...RegistrationConfiguration) (*RegistrationService, error) {
 	rs := &RegistrationService{}
