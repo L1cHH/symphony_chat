@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"time"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -15,7 +16,7 @@ func NewJWT(userID uuid.UUID, minutesTTL uint, daysTTL uint, secretKey []byte) (
 		jwt.MapClaims{
 			"sub": userID,
 			"iat": time.Now(),
-			"exp": time.Now().Add(time.Duration(minutesTTL) * time.Minute + time.Duration(daysTTL) * time.Hour * 24),
+			"exp": time.Now().Add(time.Duration(minutesTTL)*time.Minute + time.Duration(daysTTL)*time.Hour*24),
 		},
 	)
 
@@ -29,10 +30,9 @@ func NewJWT(userID uuid.UUID, minutesTTL uint, daysTTL uint, secretKey []byte) (
 	}, nil
 }
 
-
-
 type JwtRepository interface {
 	AddJWTtoken(userID uuid.UUID, token JWTtoken) error
 	GetJWTtoken(userID uuid.UUID) (JWTtoken, error)
 	UpdateJWTtoken(userID uuid.UUID) error
+	DeleteJWTtoken(userID uuid.UUID) error
 }
