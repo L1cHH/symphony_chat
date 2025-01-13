@@ -23,5 +23,10 @@ func NewChatUser(username string) ChatUser {
 	}
 }
 
-
+type ChatUserRepository interface {
+	GetChatUserByID(uuid.UUID) (ChatUser, error) 
+	AddChatUser(ChatUser) error
+	DeleteChatUserByID(uuid.UUID) error 
+	UpdateChatUser(uuid.UUID) error
+}
 
