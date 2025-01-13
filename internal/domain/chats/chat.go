@@ -33,4 +33,5 @@ type ChatRepository interface {
 	UpdateChat(uuid.UUID) error
 	AddChat(Chat) error
 	DeleteChat(uuid.UUID) error
-}
+} 
+
