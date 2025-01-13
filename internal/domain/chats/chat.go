@@ -1,11 +1,16 @@
 package chats
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Chat struct {
-	id uuid.UUID
+	id        uuid.UUID
 	userOneID uuid.UUID
 	userTwoID uuid.UUID
+	createdAt time.Time
 }
 
 func (c Chat) GetID() uuid.UUID {
@@ -20,11 +25,16 @@ func (c Chat) GetUserTwoID() uuid.UUID {
 	return c.userTwoID
 }
 
+func (c Chat) GetCreatedAt() time.Time {
+	return c.createdAt
+}
+
 func NewChat(userOneID uuid.UUID, userTwoID uuid.UUID) Chat {
 	return Chat{
-		id: uuid.New(),
+		id:        uuid.New(),
 		userOneID: userOneID,
 		userTwoID: userTwoID,
+		createdAt: time.Now(),
 	}
 }
 
@@ -33,5 +43,4 @@ type ChatRepository interface {
 	UpdateChat(uuid.UUID) error
 	AddChat(Chat) error
 	DeleteChat(uuid.UUID) error
-} 
-
+}
