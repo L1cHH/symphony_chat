@@ -7,13 +7,23 @@ import (
 )
 
 type DirectMessage struct {
-	id uuid.UUID
-	chatID uuid.UUID
-	senderID uuid.UUID
+	id          uuid.UUID
+	chatID      uuid.UUID
+	senderID    uuid.UUID
 	recipientID uuid.UUID
-	message string
-	createdAt time.Time
+	message     string
+	createdAt   time.Time
+	status      MessageStatus
+	isEdited    bool
 }
+
+type MessageStatus string
+
+const (
+	Sent        MessageStatus = "sent"
+	Read        MessageStatus = "read"
+	Undelivered MessageStatus = "undelivered"
+)
 
 func (dm DirectMessage) GetID() uuid.UUID {
 	return dm.id
@@ -39,15 +49,24 @@ func (dm DirectMessage) GetCreatedAt() time.Time {
 	return dm.createdAt
 }
 
+func (dm DirectMessage) GetIsEdited() bool {
+	return dm.isEdited
+}
+
+func (dm DirectMessage) GetStatus() MessageStatus {
+	return dm.status
+}
 
 func NewDirectMessage(chatID uuid.UUID, senderID uuid.UUID, recipientID uuid.UUID, message string) DirectMessage {
 	return DirectMessage{
-		id: uuid.New(),
-		chatID: chatID,
-		senderID: senderID,
+		id:          uuid.New(),
+		chatID:      chatID,
+		senderID:    senderID,
 		recipientID: recipientID,
-		message: message,
-		createdAt: time.Now(),
+		message:     message,
+		createdAt:   time.Now(),
+		status:      Sent,
+		isEdited:    false,
 	}
 }
 
@@ -66,6 +85,3 @@ type DirectMessageRepository interface {
 	//Update-methods
 	UpdateDirectMessage(directMessageID uuid.UUID) error
 }
-
-
-
