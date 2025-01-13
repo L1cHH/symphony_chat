@@ -30,7 +30,7 @@ func NewChatService(configs ...ChatConfiguration) (*ChatService, error) {
 	return cs, nil
 }
 
+
 func (cs *ChatService) CreateChatUser(authUserID uuid.UUID, username string) users.ChatUser {
 	return users.NewChatUser(authUserID, username)
 }
-
