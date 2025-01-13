@@ -1,0 +1,71 @@
+package messages
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type DirectMessage struct {
+	id uuid.UUID
+	chatID uuid.UUID
+	senderID uuid.UUID
+	recipientID uuid.UUID
+	message string
+	createdAt time.Time
+}
+
+func (dm DirectMessage) GetID() uuid.UUID {
+	return dm.id
+}
+
+func (dm DirectMessage) GetChatID() uuid.UUID {
+	return dm.chatID
+}
+
+func (dm DirectMessage) GetSenderID() uuid.UUID {
+	return dm.senderID
+}
+
+func (dm DirectMessage) GetRecipientID() uuid.UUID {
+	return dm.recipientID
+}
+
+func (dm DirectMessage) GetMessageContent() string {
+	return dm.message
+}
+
+func (dm DirectMessage) GetCreatedAt() time.Time {
+	return dm.createdAt
+}
+
+
+func NewDirectMessage(chatID uuid.UUID, senderID uuid.UUID, recipientID uuid.UUID, message string) DirectMessage {
+	return DirectMessage{
+		id: uuid.New(),
+		chatID: chatID,
+		senderID: senderID,
+		recipientID: recipientID,
+		message: message,
+		createdAt: time.Now(),
+	}
+}
+
+type DirectMessageRepository interface {
+	//Get-methods
+	GetDirectMessageByID(directMessageID uuid.UUID) (DirectMessage, error)
+	GetDirectMessagesBySenderID(senderID uuid.UUID, chatID uuid.UUID) ([]DirectMessage, error)
+	GetDirectMessagesByRecipientID(recipientID uuid.UUID, chatID uuid.UUID) ([]DirectMessage, error)
+	GetDirectMessagesByChatID(chatID uuid.UUID) ([]DirectMessage, error)
+	//Create-methods
+	AddDirectMessage(DirectMessage) error
+	//Delete-methods
+	DeleteDirectMessage(directMessageID uuid.UUID) error
+	DeleteDirectMessagesByChatID(chatID uuid.UUID) error
+	DeleteDirectMessagesBySenderID(chatID uuid.UUID, senderID uuid.UUID) error
+	//Update-methods
+	UpdateDirectMessage(directMessageID uuid.UUID) error
+}
+
+
+
