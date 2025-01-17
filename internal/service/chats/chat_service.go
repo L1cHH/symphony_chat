@@ -2,6 +2,7 @@ package chats
 
 import (
 	"errors"
+	"fmt"
 	"symphony_chat/internal/domain/chats"
 	"symphony_chat/internal/domain/messages"
 	"symphony_chat/internal/domain/users"
@@ -11,13 +12,17 @@ import (
 
 var (
 	//Problem with creating a chat
-	ErrProblemWithCreatingChat = errors.New("error occurs while creating chat")
+	ErrWithCreatingChat = errors.New("error occurs while creating chat")
 	//Problem with creating chatUser
-	ErrProblemWithCreatingChatUser = errors.New("error occurs while creating chatUser")
-	//Problem with db
-	ErrProblemWithDB = errors.New("error occurs while working with db")
-	//Chat does not exist
-	ErrChatDoesNotExist = errors.New("chat does not exist")
+	ErrWithCreatingChatUser = errors.New("error occurs while creating chatUser")
+	//Problem with creating direct message
+	ErrWithCreatingDirectMessage = errors.New("error occurs while creating direct message")
+	//Problem with sending direct message
+	ErrWithSendingDirectMessage = errors.New("error occurs while sending direct message")
+	//Empty message
+	ErrEmptyMessage = errors.New("message is empty")
+	//User Ids are the same
+	ErrIncorrectUserIds = errors.New("user ids are the same")
 )
 
 type ChatService struct {
@@ -46,7 +51,7 @@ func (cs *ChatService) CreateChatUser(authUserID uuid.UUID, username string) (us
 
 	err := cs.chatUserRepo.AddChatUser(chatUser)
 	if err != nil {
-		return users.ChatUser{}, errors.New(ErrProblemWithCreatingChatUser.Error() + ": " + err.Error())
+		return users.ChatUser{}, errors.New(ErrWithCreatingChatUser.Error() + ": " + err.Error())
 	}
 
 	return chatUser, nil
@@ -56,7 +61,7 @@ func (cs *ChatService) CreateChat(userOneID uuid.UUID, userTwoID uuid.UUID) (cha
 	chat := chats.NewChat(userOneID, userTwoID)
 	err := cs.chatRepo.AddChat(chat)
 	if err != nil {
-		return chats.Chat{}, errors.New(ErrProblemWithCreatingChat.Error() + ": " + err.Error())
+		return chats.Chat{}, errors.New(ErrWithCreatingChat.Error() + ": " + err.Error())
 	}
 
 	return chat, nil
@@ -64,21 +69,53 @@ func (cs *ChatService) CreateChat(userOneID uuid.UUID, userTwoID uuid.UUID) (cha
 
 func (cs *ChatService) CreateDirectMessage(chatID uuid.UUID, senderID uuid.UUID, receiverID uuid.UUID, text string) (messages.DirectMessage, error) {
 
-	exists, err := cs.chatRepo.IsChatExists(chatID)
-	if err != nil {
-		return messages.DirectMessage{}, errors.New(ErrProblemWithDB.Error() + ": " + err.Error())
-	}
-
-	if !exists {
-		return messages.DirectMessage{}, errors.New(ErrChatDoesNotExist.Error())
-	}
-
 	dm := messages.NewDirectMessage(chatID, senderID, receiverID, text)
 
-	err = cs.directMsgRepo.AddDirectMessage(dm)
+	err := cs.directMsgRepo.AddDirectMessage(dm)
 	if err != nil {
-		return messages.DirectMessage{}, errors.New(ErrProblemWithDB.Error() + ": " + err.Error())
+		return messages.DirectMessage{}, fmt.Errorf("%w: %v", ErrWithCreatingDirectMessage, err)
 	}
 
 	return dm, nil
+}
+
+func (cs *ChatService) SendDirectMessage(senderID uuid.UUID, recipientID uuid.UUID, messageContent string) error {
+
+	if messageContent == "" {
+		return ErrEmptyMessage
+	}
+
+	if senderID == recipientID {
+		return ErrIncorrectUserIds
+	}
+
+	_, err := cs.chatUserRepo.GetChatUserByID(senderID)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrWithSendingDirectMessage, err)
+	}
+
+	_, err = cs.chatUserRepo.GetChatUserByID(recipientID)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrWithSendingDirectMessage, err)
+	}
+
+	chat, err := cs.chatRepo.GetChatByUsersID(senderID, recipientID)
+	if err != nil {
+		switch {
+		case errors.Is(err, chats.ErrChatDoesNotExist):
+			chat, err = cs.CreateChat(senderID, recipientID)
+			if err != nil {
+				return fmt.Errorf("%w: %v", ErrWithSendingDirectMessage, err)
+			}
+		default:
+			return fmt.Errorf("%w: %v", ErrWithSendingDirectMessage, err)
+		}
+	}
+
+	_, err = cs.CreateDirectMessage(chat.GetID(), senderID, recipientID, messageContent)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrWithSendingDirectMessage, err)
+	}
+
+	return nil
 }
