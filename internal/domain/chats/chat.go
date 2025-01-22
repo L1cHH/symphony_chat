@@ -40,8 +40,8 @@ func NewChat(userOneID uuid.UUID, userTwoID uuid.UUID) Chat {
 
 type ChatRepository interface {
 	GetChatByID(uuid.UUID) (Chat, error)
+	GetChatByUsersID(userOneID uuid.UUID, userTwoID uuid.UUID) (Chat, error)
 	UpdateChat(uuid.UUID) error
-	IsChatExists(uuid.UUID) (bool, error)
 	AddChat(Chat) error
 	DeleteChat(uuid.UUID) error
 }

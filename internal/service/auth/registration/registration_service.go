@@ -82,12 +82,9 @@ func (rs *RegistrationService) SignUpUser(userInput authdto.LoginCredentials) (a
 	}
 
 	//Creating AuthUser
-	authUser := rs.CreateAuthUser(userInput.Login, hashedPassword)
-
-	//Adding AuthUser to database
-	err = rs.authUserRepo.AddAuthUser(authUser)
+	authUser, err := rs.CreateAuthUser(userInput.Login, hashedPassword)
 	if err != nil {
-		return authdto.AuthTokens{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
+		return authdto.AuthTokens{}, err
 	}
 
 	//Creating pair of jwt tokens(access and refresh)
@@ -99,7 +96,12 @@ func (rs *RegistrationService) SignUpUser(userInput authdto.LoginCredentials) (a
 	return jwtTokens, nil
 }
 
-func (rs *RegistrationService) CreateAuthUser(login string, password string) users.AuthUser {
+func (rs *RegistrationService) CreateAuthUser(login string, password string) (users.AuthUser, error) {
 	authUser := users.NewAuthUser(login, password)
-	return authUser
+	//Adding AuthUser to database
+	err := rs.authUserRepo.AddAuthUser(authUser)
+	if err != nil {
+		return users.AuthUser{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
+	}
+	return authUser, nil
 }

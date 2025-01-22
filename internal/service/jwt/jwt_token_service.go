@@ -78,6 +78,7 @@ func (js *JWTtokenService) GetNewPairTokens(userID uuid.UUID) (authdto.AuthToken
 	}, nil
 }
 
+// /Functon that used for validating access token
 func (js *JWTtokenService) ValidateAccessToken(tokenString string) (uuid.UUID, error) {
 	token, err := JWT.Parse(tokenString, func(t *JWT.Token) (interface{}, error) {
 		if _, ok := t.Method.(*JWT.SigningMethodHMAC); !ok {
@@ -110,4 +111,12 @@ func (js *JWTtokenService) ValidateAccessToken(tokenString string) (uuid.UUID, e
 	}
 
 	return userID, nil
+}
+
+func (js *JWTtokenService) InvalidateRefreshToken(userID uuid.UUID) error {
+	err := js.jwtRepo.DeleteJWTtoken(userID)
+	if err != nil {
+		return errors.New("problem with deleting refresh token")
+	}
+	return nil
 }

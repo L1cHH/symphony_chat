@@ -83,5 +83,5 @@ type DirectMessageRepository interface {
 	DeleteDirectMessagesByChatID(chatID uuid.UUID) error
 	DeleteDirectMessagesBySenderID(chatID uuid.UUID, senderID uuid.UUID) error
 	//Update-methods
-	UpdateDirectMessage(directMessageID uuid.UUID) error
+	UpdateDirectMessage(directMessageID uuid.UUID, updatedMessage string) error
 }
