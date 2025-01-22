@@ -1,6 +1,6 @@
 package authdto
 
 type LoginCredentials struct {
-	Login    string
-	Password string
+	Login    string `json:"email"`
+	Password string `json:"password"`
 }
