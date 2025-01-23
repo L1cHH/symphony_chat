@@ -8,7 +8,8 @@ import (
 )
 
 type JWTtoken struct {
-	token string
+	auth_user_id uuid.UUID
+	token        string
 }
 
 func NewJWT(userID uuid.UUID, minutesTTL uint, daysTTL uint, secretKey []byte) (JWTtoken, error) {
@@ -26,7 +27,8 @@ func NewJWT(userID uuid.UUID, minutesTTL uint, daysTTL uint, secretKey []byte) (
 	}
 
 	return JWTtoken{
-		token: signedToken,
+		auth_user_id: userID,
+		token:        signedToken,
 	}, nil
 }
 
