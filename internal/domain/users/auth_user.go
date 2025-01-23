@@ -29,12 +29,12 @@ func (au AuthUser) GetRegistrationAt() time.Time {
 	return au.registrationAt
 }
 
-func NewAuthUser(login string, password string) AuthUser {
+func NewAuthUser(id uuid.UUID, login string, password string, registrationAt time.Time) AuthUser {
 	return AuthUser{
-		id:             uuid.New(),
+		id:             id,
 		login:          login,
 		password:       password,
-		registrationAt: time.Now(),
+		registrationAt: registrationAt,
 	}
 }
 
@@ -45,5 +45,7 @@ type AuthUserRepository interface {
 	GetAuthUserByLogin(string) (AuthUser, error)
 	IsUserExists(login string) (bool, error)
 	AddAuthUser(AuthUser) error
-	UpdateAuthUser(uuid.UUID) error
+	UpdateLogin(uuid.UUID, string) error
+	UpdatePassword(uuid.UUID, string) error
+	DeleteAuthUser(uuid.UUID) error
 }
