@@ -6,6 +6,9 @@ import (
 	authdto "symphony_chat/internal/dto/auth"
 	jwtService "symphony_chat/internal/service/jwt"
 	utils "symphony_chat/utils/service"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -97,7 +100,7 @@ func (rs *RegistrationService) SignUpUser(userInput authdto.LoginCredentials) (a
 }
 
 func (rs *RegistrationService) CreateAuthUser(login string, password string) (users.AuthUser, error) {
-	authUser := users.NewAuthUser(login, password)
+	authUser := users.NewAuthUser(uuid.New(), login, password, time.Now())
 	//Adding AuthUser to database
 	err := rs.authUserRepo.AddAuthUser(authUser)
 	if err != nil {

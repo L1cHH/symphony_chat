@@ -41,13 +41,13 @@ func (ch ChatUser) GetLastSeenAt() time.Time {
 	return ch.lastSeenAt
 }
 
-func NewChatUser(authUSerID uuid.UUID, username string) ChatUser {
+func NewChatUser(authUSerID uuid.UUID, username string, status UserStatus, createdAt time.Time, lastSeenAt time.Time) ChatUser {
 	return ChatUser{
 		id:         authUSerID,
 		username:   username,
-		status:     Offline,
-		createdAt:  time.Now(),
-		lastSeenAt: time.Now(),
+		status:     status,
+		createdAt:  createdAt,
+		lastSeenAt: lastSeenAt,
 	}
 }
 
@@ -56,5 +56,7 @@ type ChatUserRepository interface {
 	GetChatUserByUsername(string) (ChatUser, error)
 	AddChatUser(ChatUser) error
 	DeleteChatUserByID(uuid.UUID) error
-	UpdateChatUser(uuid.UUID) error
+	UpdateUsername(uuid.UUID, string) error
+	UpdateStatus(uuid.UUID, UserStatus) error
+	UpdateLastSeenAt(uuid.UUID, time.Time) error
 }

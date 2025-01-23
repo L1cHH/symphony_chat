@@ -6,6 +6,7 @@ import (
 	"symphony_chat/internal/domain/chats"
 	"symphony_chat/internal/domain/messages"
 	"symphony_chat/internal/domain/users"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -47,7 +48,7 @@ func NewChatService(configs ...ChatConfiguration) (*ChatService, error) {
 }
 
 func (cs *ChatService) CreateChatUser(authUserID uuid.UUID, username string) (users.ChatUser, error) {
-	chatUser := users.NewChatUser(authUserID, username)
+	chatUser := users.NewChatUser(authUserID, username, users.Offline, time.Now(), time.Now())
 
 	err := cs.chatUserRepo.AddChatUser(chatUser)
 	if err != nil {
