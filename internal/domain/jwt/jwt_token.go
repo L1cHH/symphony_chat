@@ -12,6 +12,15 @@ type JWTtoken struct {
 	token        string
 }
 
+func (jt JWTtoken) GetAuthUserID() uuid.UUID {
+	return jt.auth_user_id
+}
+
+func (jt JWTtoken) GetToken() string {
+	return jt.token
+}
+
+// /Function for generating new JWT token
 func NewJWT(userID uuid.UUID, minutesTTL uint, daysTTL uint, secretKey []byte) (JWTtoken, error) {
 	token := jwt.NewWithClaims(&jwt.SigningMethodHMAC{},
 		jwt.MapClaims{
@@ -32,9 +41,17 @@ func NewJWT(userID uuid.UUID, minutesTTL uint, daysTTL uint, secretKey []byte) (
 	}, nil
 }
 
+// /Function that converts JWTtoken from database format to domain format
+func FromDB(authUserID uuid.UUID, token string) JWTtoken {
+	return JWTtoken{
+		auth_user_id: authUserID,
+		token:        token,
+	}
+}
+
 type JwtRepository interface {
-	AddJWTtoken(userID uuid.UUID, token JWTtoken) error
-	GetJWTtoken(userID uuid.UUID) (JWTtoken, error)
-	UpdateJWTtoken(userID uuid.UUID) error
-	DeleteJWTtoken(userID uuid.UUID) error
+	AddJWTtoken(token JWTtoken) error
+	GetJWTtoken(authUserID uuid.UUID) (JWTtoken, error)
+	UpdateJWTtoken(authUserID uuid.UUID, newToken string) error
+	DeleteJWTtoken(authUserID uuid.UUID) error
 }
