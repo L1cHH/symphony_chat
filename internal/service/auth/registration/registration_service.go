@@ -87,7 +87,7 @@ func (rs *RegistrationService) SignUpUser(userInput publicDto.LoginCredentials) 
 	}
 
 	//Creating pair of jwt tokens(access and refresh)
-	jwtTokens, err := rs.jwtService.GetNewPairTokens(authUser.GetID())
+	jwtTokens, err := rs.jwtService.GetCreatedPairTokens(authUser.GetID())
 	if err != nil {
 		return authdto.AuthTokens{}, errors.New(ErrProblemWithJWT.Error() + ": " + err.Error())
 	}

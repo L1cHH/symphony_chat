@@ -66,7 +66,7 @@ func (as *AuthenticationService) LogIn(userInput publicDto.LoginCredentials) (au
 		return authdto.AuthTokens{}, ErrWrongPassword
 	}
 
-	tokens, err := as.jwtService.GetNewPairTokens(authUser.GetID())
+	tokens, err := as.jwtService.GetUpdatedPairTokens(authUser.GetID())
 	if err != nil {
 		return authdto.AuthTokens{}, errors.New(ErrProblemWithUpdatingJWT.Error() + ": " + err.Error())
 	}

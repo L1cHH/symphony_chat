@@ -61,22 +61,45 @@ func (js *JWTtokenService) GetUpdatedRefreshToken(userID uuid.UUID) (jwt.JWTtoke
 		return jwt.JWTtoken{}, err
 	}
 
-	err = js.jwtRepo.UpdateJWTtoken(userID,refreshToken.GetToken())
-	if err != nil {
-		return jwt.JWTtoken{}, err
-	}
 	return refreshToken, nil
 }
 
 // /Function that used when user again write login and password (when refresh token expires)
-// /First is AccessToken, Second is RefreshToken
-func (js *JWTtokenService) GetNewPairTokens(userID uuid.UUID) (authdto.AuthTokens, error) {
+func (js *JWTtokenService) GetUpdatedPairTokens(userID uuid.UUID) (authdto.AuthTokens, error) {
 	accessToken, err := js.GetUpdatedAccessToken(userID)
 	if err != nil {
 		return authdto.AuthTokens{}, err
 	}
 
 	refreshToken, err := js.GetUpdatedRefreshToken(userID)
+	if err != nil {
+		return authdto.AuthTokens{}, err
+	}
+
+	err = js.jwtRepo.UpdateJWTtoken(userID, refreshToken.GetToken())
+	if err != nil {
+		return authdto.AuthTokens{}, err
+	}
+
+	return authdto.AuthTokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+// /Function that used when user first time write login and password 
+func (js *JWTtokenService) GetCreatedPairTokens(userID uuid.UUID) (authdto.AuthTokens, error) {
+	accessToken, err := js.GetUpdatedAccessToken(userID)
+	if err != nil {
+		return authdto.AuthTokens{}, err
+	}
+
+	refreshToken, err := js.GetUpdatedRefreshToken(userID)
+	if err != nil {
+		return authdto.AuthTokens{}, err
+	}
+
+	err = js.jwtRepo.AddJWTtoken(refreshToken)
 	if err != nil {
 		return authdto.AuthTokens{}, err
 	}
