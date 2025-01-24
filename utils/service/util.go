@@ -15,10 +15,10 @@ func IsCorrectLoginFormat(login string) bool {
 
 	disallowedSymbols := "#$%^&*!?~`':;_-+=<>,/|}{[]()"
 
-	if !strings.ContainsAny(login, disallowedSymbols) {
-		return true
-	} else {
+	if strings.ContainsAny(login, disallowedSymbols) {
 		return false
+	} else {
+		return true
 	}
 
 }
