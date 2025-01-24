@@ -61,7 +61,7 @@ func (js *JWTtokenService) GetUpdatedRefreshToken(userID uuid.UUID) (jwt.JWTtoke
 		return jwt.JWTtoken{}, err
 	}
 
-	err = js.jwtRepo.AddJWTtoken(refreshToken)
+	err = js.jwtRepo.UpdateJWTtoken(userID,refreshToken.GetToken())
 	if err != nil {
 		return jwt.JWTtoken{}, err
 	}
