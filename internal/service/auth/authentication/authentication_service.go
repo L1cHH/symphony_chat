@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"errors"
+	publicDto "symphony_chat/internal/application/dto"
 	"symphony_chat/internal/domain/users"
 	authdto "symphony_chat/internal/dto/auth"
 	jwtService "symphony_chat/internal/service/jwt"
@@ -55,7 +56,7 @@ func NewAuthenticationService(configs ...AuthenticationConfiguration) (*Authenti
 	return as, nil
 }
 
-func (as *AuthenticationService) LogIn(userInput authdto.LoginCredentials) (authdto.AuthTokens, error) {
+func (as *AuthenticationService) LogIn(userInput publicDto.LoginCredentials) (authdto.AuthTokens, error) {
 	authUser, err := as.userRepo.GetAuthUserByLogin(userInput.Login)
 	if err != nil {
 		return authdto.AuthTokens{}, errors.New(ErrUserNotFound.Error() + ": " + err.Error())

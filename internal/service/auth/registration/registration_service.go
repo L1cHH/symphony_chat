@@ -2,6 +2,7 @@ package registration
 
 import (
 	"errors"
+	publicDto "symphony_chat/internal/application/dto"
 	"symphony_chat/internal/domain/users"
 	authdto "symphony_chat/internal/dto/auth"
 	jwtService "symphony_chat/internal/service/jwt"
@@ -61,7 +62,7 @@ func WithJWTtokenService(jwtService *jwtService.JWTtokenService) RegistrationCon
 	}
 }
 
-func (rs *RegistrationService) SignUpUser(userInput authdto.LoginCredentials) (authdto.AuthTokens, error) {
+func (rs *RegistrationService) SignUpUser(userInput publicDto.LoginCredentials) (authdto.AuthTokens, error) {
 
 	//Validation user input
 	exists, err := rs.authUserRepo.IsUserExists(userInput.Login)

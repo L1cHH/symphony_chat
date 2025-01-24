@@ -1,4 +1,4 @@
-package authdto
+package publicdto
 
 type LoginCredentials struct {
 	Login    string `json:"login"`

@@ -3,7 +3,6 @@ package http
 import (
 	"net/http"
 	publicDto "symphony_chat/internal/application/dto"
-	auth "symphony_chat/internal/dto/auth"
 	as "symphony_chat/internal/service/auth/authentication"
 	rs "symphony_chat/internal/service/auth/registration"
 	utils "symphony_chat/utils/service"
@@ -25,7 +24,7 @@ func NewAuthHandler(registrationService *rs.RegistrationService, authenticationS
 }
 
 func (ah *AuthHandler) SignUp(c *gin.Context) {
-	var loginCredentials auth.LoginCredentials
+	var loginCredentials publicDto.LoginCredentials
 	if err := c.ShouldBindJSON(&loginCredentials); err != nil {
 		c.JSON(400, gin.H{"registration_error": err.Error()})
 		return
@@ -52,7 +51,7 @@ func (ah *AuthHandler) SignUp(c *gin.Context) {
 }
 
 func (ah *AuthHandler) LogIn(c *gin.Context) {
-	var loginCredentials auth.LoginCredentials
+	var loginCredentials publicDto.LoginCredentials
 	if err := c.ShouldBindJSON(&loginCredentials); err != nil {
 		c.JSON(400, gin.H{"login_error": err.Error()})
 		return
