@@ -25,8 +25,8 @@ func NewJWT(userID uuid.UUID, minutesTTL uint, daysTTL uint, secretKey []byte) (
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"sub": userID,
-			"iat": time.Now(),
-			"exp": time.Now().Add(time.Duration(minutesTTL)*time.Minute + time.Duration(daysTTL)*time.Hour*24),
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(time.Duration(minutesTTL)*time.Minute + time.Duration(daysTTL)*time.Hour*24).Unix(),
 		},
 	)
 
