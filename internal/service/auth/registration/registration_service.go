@@ -33,7 +33,7 @@ type RegistrationService struct {
 
 type RegistrationConfiguration func(*RegistrationService) error
 
-func NewResgistretionService(configs ...RegistrationConfiguration) (*RegistrationService, error) {
+func NewRegistrationService(configs ...RegistrationConfiguration) (*RegistrationService, error) {
 	rs := &RegistrationService{}
 
 	for _, cfgFunc := range configs {
