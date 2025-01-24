@@ -4,13 +4,15 @@ import (
 	"errors"
 	"symphony_chat/internal/domain/jwt"
 	authdto "symphony_chat/internal/dto/auth"
+	config "symphony_chat/internal/infrastructure/configs"
 
 	JWT "github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
 type JWTtokenService struct {
-	jwtRepo jwt.JwtRepository
+	jwtRepo   jwt.JwtRepository
+	jwtConfig config.JWTConfig
 }
 
 type JWTtokenConfiguration func(*JWTtokenService) error
@@ -28,6 +30,13 @@ func NewJWTtokenService(configs ...JWTtokenConfiguration) (*JWTtokenService, err
 	return js, nil
 }
 
+func WithJWTConfig(jwtConfig config.JWTConfig) JWTtokenConfiguration {
+	return func(js *JWTtokenService) error {
+		js.jwtConfig = jwtConfig
+		return nil
+	}
+}
+
 func WithJWTtokenRepository(jt jwt.JwtRepository) JWTtokenConfiguration {
 	return func(js *JWTtokenService) error {
 		js.jwtRepo = jt
@@ -37,7 +46,7 @@ func WithJWTtokenRepository(jt jwt.JwtRepository) JWTtokenConfiguration {
 
 // /Function for getting new access token
 func (js *JWTtokenService) GetUpdatedAccessToken(userID uuid.UUID) (jwt.JWTtoken, error) {
-	accessToken, err := jwt.NewJWT(userID, 15, 0, []byte("secretKey"))
+	accessToken, err := jwt.NewJWT(userID, js.jwtConfig.AccessTTLinMinutes, 0, []byte(js.jwtConfig.SecretKey))
 	if err != nil {
 		return jwt.JWTtoken{}, err
 	}
@@ -47,12 +56,12 @@ func (js *JWTtokenService) GetUpdatedAccessToken(userID uuid.UUID) (jwt.JWTtoken
 
 // /Function for getting new refresh token
 func (js *JWTtokenService) GetUpdatedRefreshToken(userID uuid.UUID) (jwt.JWTtoken, error) {
-	refreshToken, err := jwt.NewJWT(userID, 0, 30, []byte("secretKey"))
+	refreshToken, err := jwt.NewJWT(userID, 0, js.jwtConfig.RefreshTTLinDays, []byte(js.jwtConfig.SecretKey))
 	if err != nil {
 		return jwt.JWTtoken{}, err
 	}
 
-	err = js.jwtRepo.AddJWTtoken(userID, refreshToken)
+	err = js.jwtRepo.AddJWTtoken(refreshToken)
 	if err != nil {
 		return jwt.JWTtoken{}, err
 	}
@@ -84,7 +93,7 @@ func (js *JWTtokenService) ValidateAccessToken(tokenString string) (uuid.UUID, e
 		if _, ok := t.Method.(*JWT.SigningMethodHMAC); !ok {
 			return nil, errors.New("wrong alg method in jwt token. So token cant be parsed")
 		}
-		return []byte("secretKey"), nil
+		return []byte(js.jwtConfig.SecretKey), nil
 	})
 
 	if err != nil {
