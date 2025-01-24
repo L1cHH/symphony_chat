@@ -16,6 +16,13 @@ type AuthHandler struct {
 	authenticationService *as.AuthenticationService
 }
 
+func NewAuthHandler(registrationService *rs.RegistrationService, authenticationService *as.AuthenticationService) *AuthHandler {
+	return &AuthHandler{
+		registrationService:   registrationService,
+		authenticationService: authenticationService,
+	}
+}
+
 func (ah *AuthHandler) SignUp(c *gin.Context) {
 	var loginCredentials auth.LoginCredentials
 	if err := c.ShouldBindJSON(&loginCredentials); err != nil {
