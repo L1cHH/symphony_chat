@@ -28,7 +28,7 @@ var (
 
 type RegistrationService struct {
 	authUserRepo users.AuthUserRepository
-	jwtService   jwtService.JWTtokenService
+	jwtService   *jwtService.JWTtokenService
 }
 
 type RegistrationConfiguration func(*RegistrationService) error
@@ -54,7 +54,7 @@ func WithAuthUserRepository(au users.AuthUserRepository) RegistrationConfigurati
 	}
 }
 
-func WithJWTtokenService(jwtService jwtService.JWTtokenService) RegistrationConfiguration {
+func WithJWTtokenService(jwtService *jwtService.JWTtokenService) RegistrationConfiguration {
 	return func(rs *RegistrationService) error {
 		rs.jwtService = jwtService
 		return nil
