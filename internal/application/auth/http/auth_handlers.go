@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	publicDto "symphony_chat/internal/application/dto"
 	auth "symphony_chat/internal/dto/auth"
 	as "symphony_chat/internal/service/auth/authentication"
 	rs "symphony_chat/internal/service/auth/registration"
@@ -44,8 +45,8 @@ func (ah *AuthHandler) SignUp(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"access_token":  tokens.AccessToken,
-		"refresh_token": tokens.RefreshToken,
+		"access_token":  publicDto.ToJWTAccessTokenDTO(tokens.AccessToken),
+		"refresh_token": publicDto.ToJWTRefreshTokenDTO(tokens.RefreshToken),
 	})
 
 }
@@ -64,8 +65,8 @@ func (ah *AuthHandler) LogIn(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"access_token":  tokens.AccessToken,
-		"refresh_token": tokens.RefreshToken,
+		"access_token":  publicDto.ToJWTAccessTokenDTO(tokens.AccessToken),
+		"refresh_token": publicDto.ToJWTRefreshTokenDTO(tokens.RefreshToken),
 	})
 }
 

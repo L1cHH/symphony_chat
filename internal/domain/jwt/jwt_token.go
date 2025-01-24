@@ -22,7 +22,7 @@ func (jt JWTtoken) GetToken() string {
 
 // /Function for generating new JWT token
 func NewJWT(userID uuid.UUID, minutesTTL uint, daysTTL uint, secretKey []byte) (JWTtoken, error) {
-	token := jwt.NewWithClaims(&jwt.SigningMethodHMAC{},
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"sub": userID,
 			"iat": time.Now(),
