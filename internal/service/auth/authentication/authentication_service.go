@@ -22,13 +22,13 @@ var (
 )
 
 type AuthenticationService struct {
-	jwtService jwtService.JWTtokenService
+	jwtService *jwtService.JWTtokenService
 	userRepo   users.AuthUserRepository
 }
 
 type AuthenticationConfiguration func(*AuthenticationService) error
 
-func WithJWTtokenService(jwtService jwtService.JWTtokenService) AuthenticationConfiguration {
+func WithJWTtokenService(jwtService *jwtService.JWTtokenService) AuthenticationConfiguration {
 	return func(as *AuthenticationService) error {
 		as.jwtService = jwtService
 		return nil
