@@ -32,7 +32,7 @@ func (ah *AuthHandler) SignUp(c *gin.Context) {
 
 	//Validation user input
 
-	if !utils.IsCorrectFormat(loginCredentials.Login) || !utils.IsCorrectFormat(loginCredentials.Password) {
+	if !utils.IsCorrectLoginFormat(loginCredentials.Login) || !utils.IsCorrectPasswordFormat(loginCredentials.Password) {
 		c.JSON(400, gin.H{"registration_error": "Uncorrect format login or password"})
 		return
 	}
