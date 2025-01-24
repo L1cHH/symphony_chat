@@ -2,24 +2,40 @@ package utils
 
 import (
 	"strings"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 // Proves correctness of user input
-func IsCorrectFormat(input string) bool {
-	if len(input) < 8 || len(input) > 16 {
+func IsCorrectLoginFormat(login string) bool {
+	if len(login) < 6 || len(login) > 30 {
 		return false
 	}
 
 	disallowedSymbols := "#$%^&*!?~`':;_-+=<>,/|}{[]()"
 
-	if !strings.ContainsAny(input, disallowedSymbols) {
+	if !strings.ContainsAny(login, disallowedSymbols) {
 		return true
 	} else {
 		return false
 	}
 
+}
+
+func IsCorrectPasswordFormat(password string) bool {
+	if len(password) < 10 || len(password) > 25 {
+		return false
+	}
+
+	for _, char := range password {
+		// Проверяем, входит ли символ в диапазон ASCII (0–127)
+		if char > unicode.MaxASCII {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Hashing password
@@ -28,6 +44,7 @@ func HashPassword(password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(hashed), nil
 }
 
