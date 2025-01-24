@@ -64,11 +64,6 @@ func WithJWTtokenService(jwtService *jwtService.JWTtokenService) RegistrationCon
 func (rs *RegistrationService) SignUpUser(userInput authdto.LoginCredentials) (authdto.AuthTokens, error) {
 
 	//Validation user input
-
-	if !utils.IsCorrectFormat(userInput.Login) || !utils.IsCorrectFormat(userInput.Password) {
-		return authdto.AuthTokens{}, ErrUncorrectFormatLogin
-	}
-
 	exists, err := rs.authUserRepo.IsUserExists(userInput.Login)
 	if err != nil {
 		return authdto.AuthTokens{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
