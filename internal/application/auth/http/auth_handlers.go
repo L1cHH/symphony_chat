@@ -43,6 +43,9 @@ func (ah *AuthHandler) SignUp(c *gin.Context) {
 		return
 	}
 
+	//Setting only refresh token in cookies
+	ah.registrationService.SetRefreshTokenInHTTPCookie(c, tokens.RefreshToken.GetToken())
+
 	c.JSON(200, gin.H{
 		"access_token":  publicDto.ToJWTAccessTokenDTO(tokens.AccessToken),
 		"refresh_token": publicDto.ToJWTRefreshTokenDTO(tokens.RefreshToken),
@@ -63,6 +66,9 @@ func (ah *AuthHandler) LogIn(c *gin.Context) {
 		return
 	}
 
+	//Updating only refresh token in cookies
+	ah.authenticationService.UpdateRefreshTokenInHTTPCookie(c, tokens.RefreshToken.GetToken())
+	
 	c.JSON(200, gin.H{
 		"access_token":  publicDto.ToJWTAccessTokenDTO(tokens.AccessToken),
 		"refresh_token": publicDto.ToJWTRefreshTokenDTO(tokens.RefreshToken),
