@@ -88,6 +88,9 @@ func (ah *AuthHandler) LogOut(c *gin.Context) {
 		return
 	}
 
+	//Clearing refresh token cookie
+	ah.authenticationService.ClearRefreshTokenCookie(c)
+
 	c.JSON(200, gin.H{
 		"message": "Logout successful",
 		"action":  "clear_tokens",

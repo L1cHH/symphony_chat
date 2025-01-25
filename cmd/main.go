@@ -16,6 +16,7 @@ import (
 
 	authHandlerHTTP "symphony_chat/internal/application/auth/http"
 
+	middleware "symphony_chat/internal/application/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -107,7 +108,7 @@ func main() {
 	// Базовый маршрут для проверки
 	r.POST("/signup", authHandler.SignUp)
 	r.POST("/login", authHandler.LogIn)
-	r.POST("/logout", authHandler.LogOut)
+	r.POST("/logout", middleware.AuthMiddleware(jwtService), authHandler.LogOut)
 
 	// Запускаем сервер
 	log.Println("Starting server at :8080")

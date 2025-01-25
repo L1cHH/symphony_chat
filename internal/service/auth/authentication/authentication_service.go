@@ -90,3 +90,7 @@ func (as *AuthenticationService) UpdateRefreshTokenInHTTPCookie(c *gin.Context, 
 func (as *AuthenticationService) UpdateAccessTokenInHTTPCookie(c *gin.Context, accessToken string) {
 	c.SetCookie("access_token", accessToken, int(as.jwtService.GetAccessTokenTTL()), "/", "localhost", false, true)
 }
+
+func (as *AuthenticationService) ClearRefreshTokenCookie(c *gin.Context) {
+	c.SetCookie("refresh_token", "", 0, "/", "localhost", false, true)
+}
