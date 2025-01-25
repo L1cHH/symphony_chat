@@ -9,6 +9,7 @@ import (
 	utils "symphony_chat/utils/service"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
@@ -104,3 +105,13 @@ func (rs *RegistrationService) CreateAuthUser(login string, password string) (us
 	}
 	return authUser, nil
 }
+
+
+func (rs *RegistrationService) SetRefreshTokenInHTTPCookie(c *gin.Context, refreshToken string) {
+	c.SetCookie("refresh_token", refreshToken, int(rs.jwtService.GetRefreshTokenTTL()), "/", "localhost", false, true)
+}
+
+func (rs *RegistrationService) SetAccessTokenInHTTPCookie(c *gin.Context, accessToken string) {
+	c.SetCookie("access_token", accessToken, int(rs.jwtService.GetAccessTokenTTL()), "/", "localhost", false, true)
+}
+

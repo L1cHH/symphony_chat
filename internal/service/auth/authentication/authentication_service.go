@@ -8,6 +8,7 @@ import (
 	jwtService "symphony_chat/internal/service/jwt"
 	utils "symphony_chat/utils/service"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
@@ -80,4 +81,12 @@ func (as *AuthenticationService) LogOut(userID uuid.UUID) error {
 		return errors.New(ErrProblemWithDeletingRefreshToken.Error() + ": " + err.Error())
 	}
 	return nil
+}
+
+func (as *AuthenticationService) UpdateRefreshTokenInHTTPCookie(c *gin.Context, refreshToken string) {
+	c.SetCookie("refresh_token", refreshToken, int(as.jwtService.GetRefreshTokenTTL()), "/", "localhost", false, true)
+}
+
+func (as *AuthenticationService) UpdateAccessTokenInHTTPCookie(c *gin.Context, accessToken string) {
+	c.SetCookie("access_token", accessToken, int(as.jwtService.GetAccessTokenTTL()), "/", "localhost", false, true)
 }

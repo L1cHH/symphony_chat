@@ -111,7 +111,7 @@ func (js *JWTtokenService) GetCreatedPairTokens(userID uuid.UUID) (authdto.AuthT
 }
 
 // /Functon that used for validating access token
-func (js *JWTtokenService) ValidateAccessToken(tokenString string) (uuid.UUID, error) {
+func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) {
 	token, err := JWT.Parse(tokenString, func(t *JWT.Token) (interface{}, error) {
 		if _, ok := t.Method.(*JWT.SigningMethodHMAC); !ok {
 			return nil, errors.New("wrong alg method in jwt token. So token cant be parsed")
@@ -151,4 +151,14 @@ func (js *JWTtokenService) InvalidateRefreshToken(userID uuid.UUID) error {
 		return errors.New("problem with deleting refresh token")
 	}
 	return nil
+}
+
+///Function for getting refresh token TTL in seconds
+func (js *JWTtokenService) GetRefreshTokenTTL() uint {
+	return js.jwtConfig.RefreshTTLinDays * 24 * 3600
+}
+
+///Function for getting access token TTL in seconds
+func (js *JWTtokenService) GetAccessTokenTTL() uint {
+	return js.jwtConfig.AccessTTLinMinutes * 60
 }
