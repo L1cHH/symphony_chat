@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"context"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -50,8 +51,8 @@ func FromDB(authUserID uuid.UUID, token string) JWTtoken {
 }
 
 type JwtRepository interface {
-	AddJWTtoken(token JWTtoken) error
-	GetJWTtoken(authUserID uuid.UUID) (JWTtoken, error)
-	UpdateJWTtoken(authUserID uuid.UUID, newToken string) error
-	DeleteJWTtoken(authUserID uuid.UUID) error
+	AddJWTtoken(ctx context.Context, token JWTtoken) error
+	GetJWTtoken(ctx context.Context, authUserID uuid.UUID) (JWTtoken, error)
+	UpdateJWTtoken(ctx context.Context, authUserID uuid.UUID, newToken string) error
+	DeleteJWTtoken(ctx context.Context, authUserID uuid.UUID) error
 }
