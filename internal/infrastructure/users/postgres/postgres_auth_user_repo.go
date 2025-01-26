@@ -1,11 +1,12 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"symphony_chat/internal/domain/users"
 	"time"
-
+	"symphony_chat/internal/application/transaction"
 	"github.com/google/uuid"
 )
 
@@ -19,11 +20,15 @@ func NewPostgresAuthUserRepo(db *sql.DB) *PostgresAuthUserRepo {
 	}
 }
 
-func (pr *PostgresAuthUserRepo) GetAuthUserById(user_id uuid.UUID) (users.AuthUser, error) {
+func (pr *PostgresAuthUserRepo) GetAuthUserById(ctx context.Context, user_id uuid.UUID) (users.AuthUser, error) {
 	var id uuid.UUID
 	var login, password string
 	var registrationAt time.Time
-	err := pr.db.QueryRow(
+
+	tx := pr.GetTransaction(ctx)
+
+	err := tx.QueryRowContext(
+		ctx,
 		"SELECT id, login, password, registration_at FROM auth_user WHERE id = $1", user_id,
 	).Scan(&id, &login, &password, &registrationAt)
 
@@ -34,11 +39,15 @@ func (pr *PostgresAuthUserRepo) GetAuthUserById(user_id uuid.UUID) (users.AuthUs
 	return users.NewAuthUser(id, login, password, registrationAt), nil
 }
 
-func (pr *PostgresAuthUserRepo) GetAuthUserByLogin(user_login string) (users.AuthUser, error) {
+func (pr *PostgresAuthUserRepo) GetAuthUserByLogin(ctx context.Context, user_login string) (users.AuthUser, error) {
 	var id uuid.UUID
 	var login, password string
 	var registrationAt time.Time
-	err := pr.db.QueryRow(
+
+	tx := pr.GetTransaction(ctx)
+
+	err := tx.QueryRowContext(
+		ctx,
 		"SELECT id, login, password, registration_at FROM auth_user WHERE login = $1", user_login,
 	).Scan(&id, &login, &password, &registrationAt)
 
@@ -49,10 +58,13 @@ func (pr *PostgresAuthUserRepo) GetAuthUserByLogin(user_login string) (users.Aut
 	return users.NewAuthUser(id, login, password, registrationAt), nil
 }
 
-func (pr *PostgresAuthUserRepo) IsUserExists(user_login string) (bool, error) {
+func (pr *PostgresAuthUserRepo) IsUserExists(ctx context.Context, user_login string) (bool, error) {
 	var id uuid.UUID
 
-	err := pr.db.QueryRow(
+	tx := pr.GetTransaction(ctx)
+
+	err := tx.QueryRowContext(
+		ctx,
 		"SELECT id FROM auth_user WHERE login = $1", user_login,
 	).Scan(&id)
 
@@ -67,8 +79,11 @@ func (pr *PostgresAuthUserRepo) IsUserExists(user_login string) (bool, error) {
 	return true, nil
 }
 
-func (pr *PostgresAuthUserRepo) AddAuthUser(user users.AuthUser) error {
-	_, err := pr.db.Exec(
+func (pr *PostgresAuthUserRepo) AddAuthUser(ctx context.Context, user users.AuthUser) error {
+	tx := pr.GetTransaction(ctx)
+
+	_, err := tx.ExecContext(
+		ctx,
 		"INSERT INTO auth_user (id, login, password, registration_at) VALUES ($1, $2, $3, $4)",
 		user.GetID(), user.GetLogin(), user.GetPassword(), user.GetRegistrationAt(),
 	)
@@ -79,8 +94,11 @@ func (pr *PostgresAuthUserRepo) AddAuthUser(user users.AuthUser) error {
 	return nil
 }
 
-func (pr *PostgresAuthUserRepo) UpdateLogin(user_id uuid.UUID, new_login string) error {
-	_, err := pr.db.Exec(
+func (pr *PostgresAuthUserRepo) UpdateLogin(ctx context.Context, user_id uuid.UUID, new_login string) error {
+	tx := pr.GetTransaction(ctx)
+
+	_, err := tx.ExecContext(
+		ctx,
 		"UPDATE auth_user SET login = $1 WHERE id = $2",
 		new_login, user_id,
 	)
@@ -91,8 +109,11 @@ func (pr *PostgresAuthUserRepo) UpdateLogin(user_id uuid.UUID, new_login string)
 	return nil
 }
 
-func (pr *PostgresAuthUserRepo) UpdatePassword(user_id uuid.UUID, new_password string) error {
-	_, err := pr.db.Exec(
+func (pr *PostgresAuthUserRepo) UpdatePassword(ctx context.Context, user_id uuid.UUID, new_password string) error {
+	
+	tx := pr.GetTransaction(ctx)
+	_, err := tx.ExecContext(
+		ctx,
 		"UPDATE auth_user SET password = $1 WHERE id = $2",
 		new_password, user_id,
 	)
@@ -103,8 +124,12 @@ func (pr *PostgresAuthUserRepo) UpdatePassword(user_id uuid.UUID, new_password s
 	return nil
 }
 
-func (pr *PostgresAuthUserRepo) DeleteAuthUser(user_id uuid.UUID) error {
-	_, err := pr.db.Exec(
+func (pr *PostgresAuthUserRepo) DeleteAuthUser(ctx context.Context, user_id uuid.UUID) error {
+	
+	tx := pr.GetTransaction(ctx)
+	
+	_, err := tx.ExecContext(
+		ctx,
 		"DELETE FROM auth_user WHERE id = $1",
 		user_id,
 	)
@@ -113,4 +138,14 @@ func (pr *PostgresAuthUserRepo) DeleteAuthUser(user_id uuid.UUID) error {
 	}
 
 	return nil
+}
+
+//Function that gets transaction from context
+//If there is no transaction in context, it returns pr.db
+func (pr *PostgresAuthUserRepo) GetTransaction(ctx context.Context) transaction.DBTX {
+	if tx := transaction.IsTransaction(ctx); tx != nil {
+		return tx
+	}
+
+	return pr.db
 }
