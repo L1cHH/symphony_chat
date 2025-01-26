@@ -1,8 +1,10 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/jwt"
 
 	"github.com/google/uuid"
@@ -18,8 +20,12 @@ func NewPostgresJWTtokenRepo(db *sql.DB) *PostgresJWTtokenRepo {
 	}
 }
 
-func (pr *PostgresJWTtokenRepo) AddJWTtoken(token jwt.JWTtoken) error {
-	_, err := pr.db.Exec(
+func (pr *PostgresJWTtokenRepo) AddJWTtoken(ctx context.Context, token jwt.JWTtoken) error {
+
+	tx := pr.GetTransaction(ctx)
+
+	_, err := tx.ExecContext(
+		ctx,
 		"INSERT INTO jwt_token (auth_user_id, token) VALUES ($1, $2)",
 		token.GetAuthUserID(), token.GetToken(),
 	)
@@ -30,10 +36,14 @@ func (pr *PostgresJWTtokenRepo) AddJWTtoken(token jwt.JWTtoken) error {
 	return nil
 }
 
-func (pr *PostgresJWTtokenRepo) GetJWTtoken(userID uuid.UUID) (jwt.JWTtoken, error) {
+func (pr *PostgresJWTtokenRepo) GetJWTtoken(ctx context.Context, userID uuid.UUID) (jwt.JWTtoken, error) {
 	var authUserID uuid.UUID
 	var token string
-	err := pr.db.QueryRow(
+
+	tx := pr.GetTransaction(ctx)
+
+	err := tx.QueryRowContext(
+		ctx,
 		"SELECT auth_user_id, token FROM jwt_token WHERE auth_user_id = $1", userID,
 	).Scan(&authUserID, &token)
 
@@ -44,8 +54,12 @@ func (pr *PostgresJWTtokenRepo) GetJWTtoken(userID uuid.UUID) (jwt.JWTtoken, err
 	return jwt.FromDB(authUserID, token), nil
 }
 
-func (pr *PostgresJWTtokenRepo) UpdateJWTtoken(authUserID uuid.UUID, newToken string) error {
-	_, err := pr.db.Exec(
+func (pr *PostgresJWTtokenRepo) UpdateJWTtoken(ctx context.Context, authUserID uuid.UUID, newToken string) error {
+	
+	tx := pr.GetTransaction(ctx)
+
+	_, err := tx.ExecContext(
+		ctx,
 		"UPDATE jwt_token SET token = $1 WHERE auth_user_id = $2",
 		newToken, authUserID,
 	)
@@ -56,8 +70,12 @@ func (pr *PostgresJWTtokenRepo) UpdateJWTtoken(authUserID uuid.UUID, newToken st
 	return nil
 }
 
-func (pr *PostgresJWTtokenRepo) DeleteJWTtoken(authUserID uuid.UUID) error {
-	_, err := pr.db.Exec(
+func (pr *PostgresJWTtokenRepo) DeleteJWTtoken(ctx context.Context, authUserID uuid.UUID) error {
+	
+	tx := pr.GetTransaction(ctx)
+	
+	_, err := tx.ExecContext(
+		ctx,
 		"DELETE FROM jwt_token WHERE auth_user_id = $1",
 		authUserID,
 	)
@@ -66,4 +84,12 @@ func (pr *PostgresJWTtokenRepo) DeleteJWTtoken(authUserID uuid.UUID) error {
 	}
 
 	return nil
+}
+
+func (pr *PostgresJWTtokenRepo) GetTransaction(ctx context.Context) transaction.DBTX {
+	if tx := transaction.IsTransaction(ctx); tx != nil {
+		return tx
+	}
+
+	return pr.db
 }
