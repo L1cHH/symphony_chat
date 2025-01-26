@@ -1,8 +1,10 @@
 package registration
 
 import (
+	"context"
 	"errors"
 	publicDto "symphony_chat/internal/application/dto"
+	tx "symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/users"
 	authdto "symphony_chat/internal/dto/auth"
 	jwtService "symphony_chat/internal/service/jwt"
@@ -31,6 +33,7 @@ var (
 type RegistrationService struct {
 	authUserRepo users.AuthUserRepository
 	jwtService   *jwtService.JWTtokenService
+	transactionManager tx.TransactionManager
 }
 
 type RegistrationConfiguration func(*RegistrationService) error
@@ -63,43 +66,61 @@ func WithJWTtokenService(jwtService *jwtService.JWTtokenService) RegistrationCon
 	}
 }
 
-func (rs *RegistrationService) SignUpUser(userInput publicDto.LoginCredentials) (authdto.AuthTokens, error) {
-
-	//Validation user input
-	exists, err := rs.authUserRepo.IsUserExists(userInput.Login)
-	if err != nil {
-		return authdto.AuthTokens{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
+func WithTransactionManager(tm tx.TransactionManager) RegistrationConfiguration {
+	return func(rs *RegistrationService) error {
+		rs.transactionManager = tm
+		return nil
 	}
+}
 
-	if exists {
-		return authdto.AuthTokens{}, ErrLoginAlreadyExists
-	}
+func (rs *RegistrationService) SignUpUser(ctx context.Context, userInput publicDto.LoginCredentials) (authdto.AuthTokens, error) {
 
-	//Hashing password
-	hashedPassword, err := utils.HashPassword(userInput.Password)
-	if err != nil {
-		return authdto.AuthTokens{}, errors.New(ErrHashingPassword.Error() + ": " + err.Error())
-	}
+	authTokens := authdto.AuthTokens{}
 
-	//Creating AuthUser
-	authUser, err := rs.CreateAuthUser(userInput.Login, hashedPassword)
+	err := rs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		
+		//Validation user input
+		exists, err := rs.authUserRepo.IsUserExists(txCtx,userInput.Login)
+		if err != nil {
+			return errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
+		}
+
+		if exists {
+			return ErrLoginAlreadyExists
+		}
+
+		//Hashing password
+		hashedPassword, err := utils.HashPassword(userInput.Password)
+		if err != nil {
+			return errors.New(ErrHashingPassword.Error() + ": " + err.Error())
+		}
+
+		//Creating AuthUser
+		authUser, err := rs.CreateAuthUser(txCtx, userInput.Login, hashedPassword)
+		if err != nil {
+			return err
+		}
+
+		//Creating pair of jwt tokens(access and refresh)
+		authTokens, err = rs.jwtService.GetCreatedPairTokens(txCtx,authUser.GetID())
+		if err != nil {
+			return errors.New(ErrProblemWithJWT.Error() + ": " + err.Error())
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return authdto.AuthTokens{}, err
 	}
 
-	//Creating pair of jwt tokens(access and refresh)
-	jwtTokens, err := rs.jwtService.GetCreatedPairTokens(authUser.GetID())
-	if err != nil {
-		return authdto.AuthTokens{}, errors.New(ErrProblemWithJWT.Error() + ": " + err.Error())
-	}
-
-	return jwtTokens, nil
+	return authTokens, nil
 }
 
-func (rs *RegistrationService) CreateAuthUser(login string, password string) (users.AuthUser, error) {
+func (rs *RegistrationService) CreateAuthUser(ctx context.Context, login string, password string) (users.AuthUser, error) {
 	authUser := users.NewAuthUser(uuid.New(), login, password, time.Now())
 	//Adding AuthUser to database
-	err := rs.authUserRepo.AddAuthUser(authUser)
+	err := rs.authUserRepo.AddAuthUser(ctx, authUser)
 	if err != nil {
 		return users.AuthUser{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
 	}

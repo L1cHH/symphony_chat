@@ -37,7 +37,7 @@ func (ah *AuthHandler) SignUp(c *gin.Context) {
 		return
 	}
 
-	tokens, err := ah.registrationService.SignUpUser(loginCredentials)
+	tokens, err := ah.registrationService.SignUpUser(c.Request.Context(), loginCredentials)
 	if err != nil {
 		c.JSON(400, gin.H{"registration_error": err.Error()})
 		return
@@ -60,7 +60,7 @@ func (ah *AuthHandler) LogIn(c *gin.Context) {
 		return
 	}
 
-	tokens, err := ah.authenticationService.LogIn(loginCredentials)
+	tokens, err := ah.authenticationService.LogIn(c.Request.Context(),loginCredentials)
 	if err != nil {
 		c.JSON(400, gin.H{"login_error": err.Error()})
 		return
@@ -82,7 +82,7 @@ func (ah *AuthHandler) LogOut(c *gin.Context) {
 		return
 	}
 
-	err := ah.authenticationService.LogOut(userID.(uuid.UUID))
+	err := ah.authenticationService.LogOut(c.Request.Context(), userID.(uuid.UUID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"logout_error": err.Error()})
 		return

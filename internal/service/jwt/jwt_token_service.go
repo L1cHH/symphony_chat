@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"symphony_chat/internal/domain/jwt"
 	authdto "symphony_chat/internal/dto/auth"
@@ -65,7 +66,7 @@ func (js *JWTtokenService) GetUpdatedRefreshToken(userID uuid.UUID) (jwt.JWTtoke
 }
 
 // /Function that used when user again write login and password (when refresh token expires)
-func (js *JWTtokenService) GetUpdatedPairTokens(userID uuid.UUID) (authdto.AuthTokens, error) {
+func (js *JWTtokenService) GetUpdatedPairTokens(txCtx context.Context, userID uuid.UUID) (authdto.AuthTokens, error) {
 	accessToken, err := js.GetUpdatedAccessToken(userID)
 	if err != nil {
 		return authdto.AuthTokens{}, err
@@ -76,7 +77,7 @@ func (js *JWTtokenService) GetUpdatedPairTokens(userID uuid.UUID) (authdto.AuthT
 		return authdto.AuthTokens{}, err
 	}
 
-	err = js.jwtRepo.UpdateJWTtoken(userID, refreshToken.GetToken())
+	err = js.jwtRepo.UpdateJWTtoken(txCtx, userID, refreshToken.GetToken())
 	if err != nil {
 		return authdto.AuthTokens{}, err
 	}
@@ -88,7 +89,7 @@ func (js *JWTtokenService) GetUpdatedPairTokens(userID uuid.UUID) (authdto.AuthT
 }
 
 // /Function that used when user first time write login and password 
-func (js *JWTtokenService) GetCreatedPairTokens(userID uuid.UUID) (authdto.AuthTokens, error) {
+func (js *JWTtokenService) GetCreatedPairTokens(txCtx context.Context, userID uuid.UUID) (authdto.AuthTokens, error) {
 	accessToken, err := js.GetUpdatedAccessToken(userID)
 	if err != nil {
 		return authdto.AuthTokens{}, err
@@ -99,7 +100,7 @@ func (js *JWTtokenService) GetCreatedPairTokens(userID uuid.UUID) (authdto.AuthT
 		return authdto.AuthTokens{}, err
 	}
 
-	err = js.jwtRepo.AddJWTtoken(refreshToken)
+	err = js.jwtRepo.AddJWTtoken(txCtx, refreshToken)
 	if err != nil {
 		return authdto.AuthTokens{}, err
 	}
@@ -145,8 +146,8 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 	return userID, nil
 }
 
-func (js *JWTtokenService) InvalidateRefreshToken(userID uuid.UUID) error {
-	err := js.jwtRepo.DeleteJWTtoken(userID)
+func (js *JWTtokenService) InvalidateRefreshToken(txCtx context.Context, userID uuid.UUID) error {
+	err := js.jwtRepo.DeleteJWTtoken(txCtx, userID)
 	if err != nil {
 		return errors.New("problem with deleting refresh token")
 	}

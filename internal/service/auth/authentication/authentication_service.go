@@ -1,8 +1,10 @@
 package authentication
 
 import (
+	"context"
 	"errors"
 	publicDto "symphony_chat/internal/application/dto"
+	tx "symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/users"
 	authdto "symphony_chat/internal/dto/auth"
 	jwtService "symphony_chat/internal/service/jwt"
@@ -26,6 +28,7 @@ var (
 type AuthenticationService struct {
 	jwtService *jwtService.JWTtokenService
 	userRepo   users.AuthUserRepository
+	transactionManager tx.TransactionManager
 }
 
 type AuthenticationConfiguration func(*AuthenticationService) error
@@ -44,6 +47,14 @@ func WithAuthUserRepository(au users.AuthUserRepository) AuthenticationConfigura
 	}
 }
 
+func WithTransactionManager(tm tx.TransactionManager) AuthenticationConfiguration {
+	return func(as *AuthenticationService) error {
+		as.transactionManager = tm
+		return nil
+	}
+}
+
+
 func NewAuthenticationService(configs ...AuthenticationConfiguration) (*AuthenticationService, error) {
 	as := &AuthenticationService{}
 
@@ -57,30 +68,47 @@ func NewAuthenticationService(configs ...AuthenticationConfiguration) (*Authenti
 	return as, nil
 }
 
-func (as *AuthenticationService) LogIn(userInput publicDto.LoginCredentials) (authdto.AuthTokens, error) {
-	authUser, err := as.userRepo.GetAuthUserByLogin(userInput.Login)
+func (as *AuthenticationService) LogIn(ctx context.Context,userInput publicDto.LoginCredentials) (authdto.AuthTokens, error) {
+
+	authTokens := authdto.AuthTokens{}
+
+	err := as.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		authUser, err := as.userRepo.GetAuthUserByLogin(txCtx,userInput.Login)
+		if err != nil {
+			return errors.New(ErrUserNotFound.Error() + ": " + err.Error())
+		}
+
+		if !utils.CheckPassword(userInput.Password, authUser.GetPassword()) {
+			return errors.New(ErrWrongPassword.Error())
+		}
+
+		authTokens, err = as.jwtService.GetUpdatedPairTokens(txCtx, authUser.GetID())
+		if err != nil {
+			return errors.New(ErrProblemWithUpdatingJWT.Error() + ": " + err.Error())
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return authdto.AuthTokens{}, errors.New(ErrUserNotFound.Error() + ": " + err.Error())
+		return authdto.AuthTokens{}, err
 	}
 
-	if !utils.CheckPassword(userInput.Password, authUser.GetPassword()) {
-		return authdto.AuthTokens{}, ErrWrongPassword
-	}
-
-	tokens, err := as.jwtService.GetUpdatedPairTokens(authUser.GetID())
-	if err != nil {
-		return authdto.AuthTokens{}, errors.New(ErrProblemWithUpdatingJWT.Error() + ": " + err.Error())
-	}
-
-	return tokens, nil
+	return authTokens, nil
 }
 
-func (as *AuthenticationService) LogOut(userID uuid.UUID) error {
-	err := as.jwtService.InvalidateRefreshToken(userID)
-	if err != nil {
-		return errors.New(ErrProblemWithDeletingRefreshToken.Error() + ": " + err.Error())
-	}
-	return nil
+func (as *AuthenticationService) LogOut(ctx context.Context, userID uuid.UUID) error {
+
+	err :=as.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		err := as.jwtService.InvalidateRefreshToken(txCtx, userID)
+		if err != nil {
+			return errors.New(ErrProblemWithDeletingRefreshToken.Error() + ": " + err.Error())
+		}
+
+		return nil
+	})
+
+	return err
 }
 
 func (as *AuthenticationService) UpdateRefreshTokenInHTTPCookie(c *gin.Context, refreshToken string) {
