@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,13 +40,12 @@ func NewAuthUser(id uuid.UUID, login string, password string, registrationAt tim
 }
 
 //AuthUserRepository for managing AuthUser aggregate
-
 type AuthUserRepository interface {
-	GetAuthUserById(uuid.UUID) (AuthUser, error)
-	GetAuthUserByLogin(string) (AuthUser, error)
-	IsUserExists(login string) (bool, error)
-	AddAuthUser(AuthUser) error
-	UpdateLogin(uuid.UUID, string) error
-	UpdatePassword(uuid.UUID, string) error
-	DeleteAuthUser(uuid.UUID) error
+	GetAuthUserById(ctx context.Context, id uuid.UUID) (AuthUser, error)
+	GetAuthUserByLogin(ctx context.Context, login string) (AuthUser, error)
+	IsUserExists(ctx context.Context, login string) (bool, error)
+	AddAuthUser(ctx context.Context, authUser AuthUser) error
+	UpdateLogin(ctx context.Context, id uuid.UUID, newLogin string) error
+	UpdatePassword(ctx context.Context, id uuid.UUID, newPassword string) error
+	DeleteAuthUser(ctx context.Context, id uuid.UUID) error
 }
