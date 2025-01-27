@@ -1,10 +1,12 @@
 package middleware
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	jwtService "symphony_chat/internal/service/jwt"
+	jwt "symphony_chat/internal/domain/jwt"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,7 +32,7 @@ func AuthMiddleware(js *jwtService.JWTtokenService) gin.HandlerFunc {
 			return
 		}
 
-		if err.Error() != "token is not valid" {
+		if errors.Is(err, jwt.ErrTokenNotValid) {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": fmt.Errorf("validation error: %w", err).Error()})
 			return 
 		}

@@ -77,17 +77,29 @@ func (js *JWTtokenService) GetUpdatedRefreshToken(userID uuid.UUID) (jwt.JWTtoke
 func (js *JWTtokenService) GetUpdatedPairTokens(txCtx context.Context, userID uuid.UUID) (authdto.AuthTokens, error) {
 	accessToken, err := js.GetUpdatedAccessToken(userID)
 	if err != nil {
-		return authdto.AuthTokens{}, err
+		return authdto.AuthTokens{}, &jwt.TokenError{
+			Code: "ACCESS_TOKEN_CREATION_FAILED",
+			Message: "access token cant be created",
+			Err: err,
+		}
 	}
 
 	refreshToken, err := js.GetUpdatedRefreshToken(userID)
 	if err != nil {
-		return authdto.AuthTokens{}, err
+		return authdto.AuthTokens{}, &jwt.TokenError{
+			Code: "REFRESH_TOKEN_CREATION_FAILED",
+			Message: "refresh token cant be created",
+			Err: err,
+		}
 	}
 
 	err = js.jwtRepo.UpdateJWTtoken(txCtx, userID, refreshToken.GetToken())
 	if err != nil {
-		return authdto.AuthTokens{}, err
+		return authdto.AuthTokens{}, &jwt.TokenError{
+			Code: "REFRESH_TOKEN_UPDATE_FAILED",
+			Message: "refresh token cant be updated",
+			Err: err,
+		}
 	}
 
 	return authdto.AuthTokens{
@@ -100,17 +112,29 @@ func (js *JWTtokenService) GetUpdatedPairTokens(txCtx context.Context, userID uu
 func (js *JWTtokenService) GetCreatedPairTokens(txCtx context.Context, userID uuid.UUID) (authdto.AuthTokens, error) {
 	accessToken, err := js.GetUpdatedAccessToken(userID)
 	if err != nil {
-		return authdto.AuthTokens{}, err
+		return authdto.AuthTokens{}, &jwt.TokenError{
+			Code: "ACCESS_TOKEN_CREATION_FAILED",
+			Message: "access token cant be created",
+			Err: err,
+		}
 	}
 
 	refreshToken, err := js.GetUpdatedRefreshToken(userID)
 	if err != nil {
-		return authdto.AuthTokens{}, err
+		return authdto.AuthTokens{}, &jwt.TokenError{
+			Code: "REFRESH_TOKEN_CREATION_FAILED",
+			Message: "refresh token cant be created",
+			Err: err,
+		}
 	}
 
 	err = js.jwtRepo.AddJWTtoken(txCtx, refreshToken)
 	if err != nil {
-		return authdto.AuthTokens{}, err
+		return authdto.AuthTokens{}, &jwt.TokenError{
+			Code: "REFRESH_TOKEN_CREATION_FAILED",
+			Message: "refresh token cant be created",
+			Err: err,
+		}
 	}
 
 	return authdto.AuthTokens{
@@ -131,7 +155,7 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 	if err != nil {
 		return uuid.Nil, &jwt.TokenError{
 			Code: "TOKEN_NOT_VALID",
-			Message: "token is not valid",
+			Message: "token cant be parsed",
 			Err: err,
 		}
 	}
@@ -143,7 +167,7 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 	claims, ok := token.Claims.(JWT.MapClaims)
 	if !ok {
 		return uuid.Nil, &jwt.TokenError{
-			Code: "INVALID_TOKEN_CLAIMS_FORMAT",
+			Code: "TOKEN_NOT_VALID",
 			Message: "invalid token claims format",
 			Err: errors.New("invalid token claims format"),
 		}
@@ -152,8 +176,8 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 	userIDStr, ok := claims["sub"].(string)
 	if !ok {
 		return uuid.Nil, &jwt.TokenError{
-			Code: "INVALID_TOKEN_CLAIMS_FORMAT",
-			Message: "invalid token claims format",
+			Code: "TOKEN_NOT_VALID",
+			Message: "sub claim was not provided in token claims",
 			Err: errors.New("sub claim was not provided in token claims"),
 		}
 	}
@@ -161,9 +185,9 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		return uuid.Nil, &jwt.TokenError{
-			Code: "INVALID_TOKEN_CLAIMS_FORMAT",
-			Message: "invalid token claims format",
-			Err: errors.New("userID was not provided in token claims"),
+			Code: "TOKEN_NOT_VALID",
+			Message: "sub claim cant be parsed to uuid",
+			Err: err,
 		}
 	}
 
@@ -173,7 +197,11 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 func (js *JWTtokenService) InvalidateRefreshToken(txCtx context.Context, userID uuid.UUID) error {
 	err := js.jwtRepo.DeleteJWTtoken(txCtx, userID)
 	if err != nil {
-		return err
+		return &jwt.TokenError{
+			Code: "REFRESH_TOKEN_INVALDIATION_FAILED",
+			Message: "refresh token cant be deleted",
+			Err: err,
+		}
 	}
 	return nil
 }

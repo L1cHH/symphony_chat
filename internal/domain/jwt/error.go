@@ -29,6 +29,6 @@ var (
 
 	ErrTokenNotValid = &TokenError {
 		Code: "TOKEN_NOT_VALID",
-		Message: "token is not valid",
+		Message: "token is expired",
 	}
 )

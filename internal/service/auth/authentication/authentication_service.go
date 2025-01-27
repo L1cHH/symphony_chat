@@ -75,16 +75,24 @@ func (as *AuthenticationService) LogIn(ctx context.Context,userInput publicDto.L
 	err := as.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
 		authUser, err := as.userRepo.GetAuthUserByLogin(txCtx,userInput.Login)
 		if err != nil {
-			return errors.New(ErrUserNotFound.Error() + ": " + err.Error())
+			return &users.AuthError{
+				Code: "LOGIN_ERROR",
+				Message: "auth user not found",
+				Err: err,
+			}
 		}
 
 		if !utils.CheckPassword(userInput.Password, authUser.GetPassword()) {
-			return errors.New(ErrWrongPassword.Error())
+			return users.ErrWrongPassword
 		}
 
 		authTokens, err = as.jwtService.GetUpdatedPairTokens(txCtx, authUser.GetID())
 		if err != nil {
-			return errors.New(ErrProblemWithUpdatingJWT.Error() + ": " + err.Error())
+			return &users.AuthError{
+				Code: "LOGIN_ERROR",
+				Message: "failed to generate new jwt tokens",
+				Err: err,
+			}
 		}
 
 		return nil
@@ -99,10 +107,14 @@ func (as *AuthenticationService) LogIn(ctx context.Context,userInput publicDto.L
 
 func (as *AuthenticationService) LogOut(ctx context.Context, userID uuid.UUID) error {
 
-	err :=as.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+	err := as.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
 		err := as.jwtService.InvalidateRefreshToken(txCtx, userID)
 		if err != nil {
-			return errors.New(ErrProblemWithDeletingRefreshToken.Error() + ": " + err.Error())
+			return &users.AuthError{
+				Code: "LOGOUT_ERROR",
+				Message: "failed to invalidate refresh token",
+				Err: err,
+			}
 		}
 
 		return nil

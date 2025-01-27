@@ -3,10 +3,11 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
+	"symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/users"
 	"time"
-	"symphony_chat/internal/application/transaction"
+
 	"github.com/google/uuid"
 )
 
@@ -33,7 +34,15 @@ func (pr *PostgresAuthUserRepo) GetAuthUserById(ctx context.Context, user_id uui
 	).Scan(&id, &login, &password, &registrationAt)
 
 	if err != nil {
-		return users.AuthUser{}, fmt.Errorf("failed to get auth_user by id: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return users.AuthUser{}, users.ErrAuthUserNotFound
+		}
+
+		return users.AuthUser{}, &users.AuthError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to get auth_user by id",
+			Err: err,
+		}
 	}
 
 	return users.NewAuthUser(id, login, password, registrationAt), nil
@@ -52,7 +61,15 @@ func (pr *PostgresAuthUserRepo) GetAuthUserByLogin(ctx context.Context, user_log
 	).Scan(&id, &login, &password, &registrationAt)
 
 	if err != nil {
-		return users.AuthUser{}, fmt.Errorf("failed to get auth_user by login: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return users.AuthUser{}, users.ErrAuthUserNotFound
+		}
+
+		return users.AuthUser{}, &users.AuthError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to get auth_user by login",
+			Err: err,
+		}
 	}
 
 	return users.NewAuthUser(id, login, password, registrationAt), nil
@@ -69,7 +86,11 @@ func (pr *PostgresAuthUserRepo) IsUserExists(ctx context.Context, user_login str
 	).Scan(&id)
 
 	if err != nil && err != sql.ErrNoRows {
-		return false, fmt.Errorf("failed to check if user exists: %w", err)
+		return false, &users.AuthError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to check if user exists",
+			Err: err,
+		}
 	}
 
 	if err == sql.ErrNoRows {
@@ -88,7 +109,11 @@ func (pr *PostgresAuthUserRepo) AddAuthUser(ctx context.Context, user users.Auth
 		user.GetID(), user.GetLogin(), user.GetPassword(), user.GetRegistrationAt(),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to add auth_user: %w", err)
+		return &users.AuthError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to add auth_user",
+			Err: err,
+		}
 	}
 
 	return nil
@@ -103,7 +128,11 @@ func (pr *PostgresAuthUserRepo) UpdateLogin(ctx context.Context, user_id uuid.UU
 		new_login, user_id,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to update login: %w", err)
+		return &users.AuthError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to update login",
+			Err: err,
+		}
 	}
 
 	return nil
@@ -118,7 +147,11 @@ func (pr *PostgresAuthUserRepo) UpdatePassword(ctx context.Context, user_id uuid
 		new_password, user_id,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to update password: %w", err)
+		return &users.AuthError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to update password",
+			Err: err,
+		}
 	}
 
 	return nil
@@ -134,7 +167,11 @@ func (pr *PostgresAuthUserRepo) DeleteAuthUser(ctx context.Context, user_id uuid
 		user_id,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to delete auth_user: %w", err)
+		return &users.AuthError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to delete auth_user",
+			Err: err,
+		}
 	}
 
 	return nil

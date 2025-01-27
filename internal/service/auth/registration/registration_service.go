@@ -82,29 +82,45 @@ func (rs *RegistrationService) SignUpUser(ctx context.Context, userInput publicD
 		//Validation user input
 		exists, err := rs.authUserRepo.IsUserExists(txCtx,userInput.Login)
 		if err != nil {
-			return errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
+			return &users.AuthError{
+				Code: "REGISTRATION_ERROR",
+				Message: "failed to check user with this login existense",
+				Err: err,
+			}
 		}
 
 		if exists {
-			return ErrLoginAlreadyExists
+			return users.ErrLoginAlreadyExists
 		}
 
 		//Hashing password
 		hashedPassword, err := utils.HashPassword(userInput.Password)
 		if err != nil {
-			return errors.New(ErrHashingPassword.Error() + ": " + err.Error())
+			return &users.AuthError{
+				Code: "PASSWORD_HASHING_ERROR",
+				Message: "failed to hash password",
+				Err: err,
+			}
 		}
 
 		//Creating AuthUser
 		authUser, err := rs.CreateAuthUser(txCtx, userInput.Login, hashedPassword)
 		if err != nil {
-			return err
+			return &users.AuthError{
+				Code: "REGISTRATION_ERROR",
+				Message: "failed to create new auth user",
+				Err: err,
+			}
 		}
 
 		//Creating pair of jwt tokens(access and refresh)
-		authTokens, err = rs.jwtService.GetCreatedPairTokens(txCtx,authUser.GetID())
+		authTokens, err = rs.jwtService.GetCreatedPairTokens(txCtx, authUser.GetID())
 		if err != nil {
-			return errors.New(ErrProblemWithJWT.Error() + ": " + err.Error())
+			return &users.AuthError{
+				Code: "REGISTRATION_ERROR",
+				Message: "failed to create jwt tokens",
+				Err: err,
+			}
 		}
 
 		return nil
@@ -122,7 +138,7 @@ func (rs *RegistrationService) CreateAuthUser(ctx context.Context, login string,
 	//Adding AuthUser to database
 	err := rs.authUserRepo.AddAuthUser(ctx, authUser)
 	if err != nil {
-		return users.AuthUser{}, errors.New(ErrDatabaseProblem.Error() + ": " + err.Error())
+		return users.AuthUser{}, err
 	}
 	return authUser, nil
 }
