@@ -3,7 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 	"symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/jwt"
 
@@ -30,7 +30,11 @@ func (pr *PostgresJWTtokenRepo) AddJWTtoken(ctx context.Context, token jwt.JWTto
 		token.GetAuthUserID(), token.GetToken(),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to add jwt_token: %w", err)
+		return &jwt.TokenError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to add jwt_token",
+			Err: err,
+		}
 	}
 
 	return nil
@@ -48,7 +52,15 @@ func (pr *PostgresJWTtokenRepo) GetJWTtoken(ctx context.Context, userID uuid.UUI
 	).Scan(&authUserID, &token)
 
 	if err != nil {
-		return jwt.JWTtoken{}, fmt.Errorf("failed to get jwt_token: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return jwt.JWTtoken{}, jwt.ErrTokenNotFound
+		}
+		
+		return jwt.JWTtoken{}, &jwt.TokenError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to get jwt_token",
+			Err: err,
+		}
 	}
 
 	return jwt.FromDB(authUserID, token), nil
@@ -64,7 +76,11 @@ func (pr *PostgresJWTtokenRepo) UpdateJWTtoken(ctx context.Context, authUserID u
 		newToken, authUserID,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to update jwt_token: %w", err)
+		return &jwt.TokenError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to update jwt_token",
+			Err: err,
+		}
 	}
 
 	return nil
@@ -80,7 +96,11 @@ func (pr *PostgresJWTtokenRepo) DeleteJWTtoken(ctx context.Context, authUserID u
 		authUserID,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to delete jwt_token: %w", err)
+		return &jwt.TokenError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to delete jwt_token",
+			Err: err,
+		}
 	}
 
 	return nil

@@ -49,7 +49,11 @@ func WithJWTtokenRepository(jt jwt.JwtRepository) JWTtokenConfiguration {
 func (js *JWTtokenService) GetUpdatedAccessToken(userID uuid.UUID) (jwt.JWTtoken, error) {
 	accessToken, err := jwt.NewJWT(userID, js.jwtConfig.AccessTTLinMinutes, 0, []byte(js.jwtConfig.SecretKey))
 	if err != nil {
-		return jwt.JWTtoken{}, err
+		return jwt.JWTtoken{}, &jwt.TokenError{
+			Code: "ACCESS_TOKEN_NOT_CREATED",
+			Message: "access token cant be created",
+			Err: err,
+		}
 	}
 
 	return accessToken, nil
@@ -59,7 +63,11 @@ func (js *JWTtokenService) GetUpdatedAccessToken(userID uuid.UUID) (jwt.JWTtoken
 func (js *JWTtokenService) GetUpdatedRefreshToken(userID uuid.UUID) (jwt.JWTtoken, error) {
 	refreshToken, err := jwt.NewJWT(userID, 0, js.jwtConfig.RefreshTTLinDays, []byte(js.jwtConfig.SecretKey))
 	if err != nil {
-		return jwt.JWTtoken{}, err
+		return jwt.JWTtoken{}, &jwt.TokenError{
+			Code: "REFRESH_TOKEN_NOT_CREATED",
+			Message: "refresh token cant be created",
+			Err: err,
+		}
 	}
 
 	return refreshToken, nil
@@ -121,26 +129,42 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 	})
 
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, &jwt.TokenError{
+			Code: "TOKEN_NOT_VALID",
+			Message: "token is not valid",
+			Err: err,
+		}
 	}
 
 	if !token.Valid {
-		return uuid.Nil, errors.New("token is not valid")
+		return uuid.Nil, jwt.ErrTokenNotValid
 	}
 
 	claims, ok := token.Claims.(JWT.MapClaims)
 	if !ok {
-		return uuid.Nil, errors.New("invalid token claims format")
+		return uuid.Nil, &jwt.TokenError{
+			Code: "INVALID_TOKEN_CLAIMS_FORMAT",
+			Message: "invalid token claims format",
+			Err: errors.New("invalid token claims format"),
+		}
 	}
 
 	userIDStr, ok := claims["sub"].(string)
 	if !ok {
-		return uuid.Nil, errors.New("uncorrect format of sub claim, must be string")
+		return uuid.Nil, &jwt.TokenError{
+			Code: "INVALID_TOKEN_CLAIMS_FORMAT",
+			Message: "invalid token claims format",
+			Err: errors.New("sub claim was not provided in token claims"),
+		}
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		return uuid.Nil, errors.New("invalid user ID format in token, must be uuid")
+		return uuid.Nil, &jwt.TokenError{
+			Code: "INVALID_TOKEN_CLAIMS_FORMAT",
+			Message: "invalid token claims format",
+			Err: errors.New("userID was not provided in token claims"),
+		}
 	}
 
 	return userID, nil
@@ -149,7 +173,7 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 func (js *JWTtokenService) InvalidateRefreshToken(txCtx context.Context, userID uuid.UUID) error {
 	err := js.jwtRepo.DeleteJWTtoken(txCtx, userID)
 	if err != nil {
-		return errors.New("problem with deleting refresh token")
+		return err
 	}
 	return nil
 }
