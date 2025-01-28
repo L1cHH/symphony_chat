@@ -2,7 +2,6 @@ package registration
 
 import (
 	"context"
-	"errors"
 	publicDto "symphony_chat/internal/application/dto"
 	tx "symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/users"
@@ -13,21 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-)
-
-var (
-	//Correct format does not include numbers or punctuation symbols. Also there must be 8 characters in len
-	ErrUncorrectFormatLogin = errors.New("uncorrect format login or password")
-	//This login is already owned by someone else
-	ErrLoginAlreadyExists = errors.New("user with this login already exists")
-	//Problem with database
-	ErrDatabaseProblem = errors.New("problem with database")
-	//Problem with hashing password
-	ErrHashingPassword = errors.New("error occurs while hashing")
-	//Problem with creating JWT token
-	ErrProblemWithJWT = errors.New("jwt error")
-	//Uncoverable
-	ErrUnimplementedError = errors.New("this error is uncovered")
 )
 
 type RegistrationService struct {

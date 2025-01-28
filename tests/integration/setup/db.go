@@ -42,9 +42,9 @@ func NewTestDB() (*TestDB, error) {
 
 func (tbd *TestDB) TruncateAllTables() error {
 	rows, err := tbd.DB.Query(`
-		SELECT table_name 
+		SELECT tablename 
 		FROM pg_tables
-		WHERE table_schema = 'public'
+		WHERE schemaname = 'public'
 	`)
 
 	if err != nil {
