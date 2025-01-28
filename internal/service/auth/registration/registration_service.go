@@ -4,6 +4,7 @@ import (
 	"context"
 	publicDto "symphony_chat/internal/application/dto"
 	tx "symphony_chat/internal/application/transaction"
+	"symphony_chat/internal/domain/jwt"
 	"symphony_chat/internal/domain/users"
 	authdto "symphony_chat/internal/dto/auth"
 	jwtService "symphony_chat/internal/service/jwt"
@@ -67,7 +68,7 @@ func (rs *RegistrationService) SignUpUser(ctx context.Context, userInput publicD
 		exists, err := rs.authUserRepo.IsUserExists(txCtx,userInput.Login)
 		if err != nil {
 			return &users.AuthError{
-				Code: "REGISTRATION_ERROR",
+				Code: "CHECK_USER_EXISTENSE_ERROR",
 				Message: "failed to check user with this login existense",
 				Err: err,
 			}
@@ -91,7 +92,7 @@ func (rs *RegistrationService) SignUpUser(ctx context.Context, userInput publicD
 		authUser, err := rs.CreateAuthUser(txCtx, userInput.Login, hashedPassword)
 		if err != nil {
 			return &users.AuthError{
-				Code: "REGISTRATION_ERROR",
+				Code: "CREATE_AUTH_USER_ERROR",
 				Message: "failed to create new auth user",
 				Err: err,
 			}
@@ -100,8 +101,8 @@ func (rs *RegistrationService) SignUpUser(ctx context.Context, userInput publicD
 		//Creating pair of jwt tokens(access and refresh)
 		authTokens, err = rs.jwtService.GetCreatedPairTokens(txCtx, authUser.GetID())
 		if err != nil {
-			return &users.AuthError{
-				Code: "REGISTRATION_ERROR",
+			return &jwt.TokenError{
+				Code: "CREATE_JWT_TOKENS_ERROR",
 				Message: "failed to create jwt tokens",
 				Err: err,
 			}

@@ -1,8 +1,11 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 	publicDto "symphony_chat/internal/application/dto"
+	"symphony_chat/internal/domain/jwt"
+	"symphony_chat/internal/domain/users"
 	as "symphony_chat/internal/service/auth/authentication"
 	rs "symphony_chat/internal/service/auth/registration"
 	utils "symphony_chat/utils/service"
@@ -26,20 +29,86 @@ func NewAuthHandler(registrationService *rs.RegistrationService, authenticationS
 func (ah *AuthHandler) SignUp(c *gin.Context) {
 	var loginCredentials publicDto.LoginCredentials
 	if err := c.ShouldBindJSON(&loginCredentials); err != nil {
-		c.JSON(400, gin.H{"registration_error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code": "INVALID_INPUT",
+			"message": "Invalid input format",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	//Validation user input
 
 	if !utils.IsCorrectLoginFormat(loginCredentials.Login) || !utils.IsCorrectPasswordFormat(loginCredentials.Password) {
-		c.JSON(400, gin.H{"registration_error": "Uncorrect format login or password"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code": "INVALID_LOGIN_OR_PASSWORD_FORMAT",
+			"message": "login or password format is not valid",
+			"details": "login must be between 6 and 30 characters and password must be between 10 and 25 characters in length",
+		})
 		return
 	}
 
 	tokens, err := ah.registrationService.SignUpUser(c.Request.Context(), loginCredentials)
 	if err != nil {
-		c.JSON(400, gin.H{"registration_error": err.Error()})
+		var authErr *users.AuthError
+		var tokenErr *jwt.TokenError
+
+		switch {
+		case errors.As(err, &authErr):
+			//Auth errors
+
+			switch authErr.Code {
+			case "CHECK_USER_EXISTENSE_ERROR", "CREATE_AUTH_USER_ERROR":
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code": "DATABASE_ERROR",
+					"message": "internal server error, please try again later",
+				})
+
+			case "PASSWORD_HASHING_ERROR":
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code": "PASSWORD_HASHING_ERROR",
+					"message": "internal server error, please try again later",
+				})
+			
+			case "LOGIN_ALREADY_EXISTS":
+				c.JSON(http.StatusConflict, gin.H{
+					"code": "LOGIN_ALREADY_EXISTS",
+					"message": "user with this login already exists",
+				})
+
+			default:
+				//Unexpected error
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code": "INTERNAL_SERVER_ERROR",
+					"message": "internal server error, please try again later",
+				})
+			}
+		case errors.As(err, &tokenErr):
+			//Token errors
+
+			switch tokenErr.Code {
+
+			case "CREATE_JWT_TOKENS_ERROR":
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code": "TOKEN_GENERATION_FAILED",
+					"message": "failed to generate tokens, please try again later",
+				})
+
+			default:
+				//Unexpected error
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code": "INTERNAL_SERVER_ERROR",
+					"message": "internal server error, please try again later",
+				})
+			}
+		default:
+			//Unexpected error
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": "INTERNAL_SERVER_ERROR",
+				"message": "internal server error, please try again later",
+			})
+		}
+
 		return
 	}
 
