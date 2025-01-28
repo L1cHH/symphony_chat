@@ -6,6 +6,7 @@ import (
 	"strconv"
 	config "symphony_chat/internal/infrastructure/configs"
 	"symphony_chat/internal/infrastructure/database"
+	transaction"symphony_chat/internal/infrastructure/transaction/postgres"
 
 	jwtPostgresRepo "symphony_chat/internal/infrastructure/jwt/postgres"
 	authUserPostgresRepo "symphony_chat/internal/infrastructure/users/postgres"
@@ -17,6 +18,7 @@ import (
 	authHandlerHTTP "symphony_chat/internal/application/auth/http"
 
 	middleware "symphony_chat/internal/application/middleware"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -70,6 +72,9 @@ func main() {
 
 	// Creating services
 
+	//Transaction manager
+	transactionManager := transaction.NewPostgresTransactionManager(db)
+
 	// JWTtoken service
 	jwtService, err := jwtService.NewJWTtokenService(
 		jwtService.WithJWTConfig(jwtConfig),
@@ -83,6 +88,7 @@ func main() {
 	registrationService, err := registration.NewRegistrationService(
 		registration.WithAuthUserRepository(authUserRepo),
 		registration.WithJWTtokenService(jwtService),
+		registration.WithTransactionManager(transactionManager),
 	)
 	if err != nil {
 		log.Fatal("Failed to create registration service:", err)
@@ -92,6 +98,7 @@ func main() {
 	authenticationService, err := authentication.NewAuthenticationService(
 		authentication.WithAuthUserRepository(authUserRepo),
 		authentication.WithJWTtokenService(jwtService),
+		authentication.WithTransactionManager(transactionManager),
 	)
 	if err != nil {
 		log.Fatal("Failed to create authentication service:", err)

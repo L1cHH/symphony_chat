@@ -2,7 +2,6 @@ package authentication
 
 import (
 	"context"
-	"errors"
 	publicDto "symphony_chat/internal/application/dto"
 	tx "symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/users"
@@ -14,16 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	//User with that login not found
-	ErrUserNotFound = errors.New("user with that login not found")
-	//Wrong password for this user
-	ErrWrongPassword = errors.New("wrong password for this user")
-	//Problem with updating jwt tokens (access and refresh tokens)
-	ErrProblemWithUpdatingJWT = errors.New("problem with updating jwt tokens")
-	//Problem with deleting refresh token
-	ErrProblemWithDeletingRefreshToken = errors.New("problem with deleting refresh token")
-)
 
 type AuthenticationService struct {
 	jwtService *jwtService.JWTtokenService
