@@ -5,11 +5,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
 	publicDto "symphony_chat/internal/application/dto"
+	"symphony_chat/internal/application/middleware"
 	"symphony_chat/internal/domain/users"
 	authhttp "symphony_chat/tests/integration/auth/http"
 	"symphony_chat/tests/integration/setup"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -333,13 +339,193 @@ func TestLogOutHandler(t *testing.T) {
 
 	testCases := []struct {
 		name   				string
-		credentials 		publicDto.LoginCredentials
 		expectedHttpCode 	int
 		expectedErrCode 	string
-		beforeTestAction 	func(t *testing.T, testDB *setup.TestDB)
+		beforeTestAction 	func(t *testing.T, testDB *setup.TestDB) (*httptest.ResponseRecorder, *http.Request)
 	}{
 		{
 			name: "Success Logout",
+			expectedHttpCode: http.StatusOK,
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) (*httptest.ResponseRecorder, *http.Request) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+
+				jsonBody, err := json.Marshal(publicDto.LoginCredentials {
+					Login:    "Andrei.Karpukh2000@gmail.com",
+					Password: "fhigbgiwgwwhnwihwgwb",
+				})
+
+				require.NoError(t, err)
+
+				req := httptest.NewRequest("POST", "/auth/signup", bytes.NewBuffer(jsonBody))
+				res := httptest.NewRecorder()
+
+				router.ServeHTTP(res, req)
+				require.Equal(t, res.Code, http.StatusOK)
+
+				var foundRefreshTokenInCookies bool
+
+				cookies := res.Result().Cookies()
+				for _, cookie := range cookies {
+					if cookie.Name == "refresh_token" {
+						foundRefreshTokenInCookies = true
+						break
+					}
+				}
+
+				require.True(t, foundRefreshTokenInCookies)
+
+				var responseBody map[string]publicDto.JWTTokenDTO
+
+				err = json.Unmarshal(res.Body.Bytes(), &responseBody)
+				require.NoError(t, err)
+				require.NotEmpty(t, responseBody["access_token"])
+				require.NotEmpty(t, responseBody["refresh_token"])
+
+				req = httptest.NewRequest("POST", "/auth/logout", nil)
+
+				req.Header.Set("Authorization", "Bearer "+ responseBody["access_token"].Token)
+
+				res = httptest.NewRecorder()
+
+				return res, req
+			},
 		},
+
+		{
+			name: "Empty Authorization header",
+			expectedHttpCode: http.StatusUnauthorized,
+			expectedErrCode: middleware.ErrAccessTokenWasNotProvided.Code,
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) (*httptest.ResponseRecorder, *http.Request) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+
+
+				req := httptest.NewRequest("POST", "/auth/logout", nil)
+				res := httptest.NewRecorder()
+
+				return res, req
+			},
+		},
+		{
+			name: "Invalid Authorization header",
+			expectedHttpCode: http.StatusUnauthorized,
+			expectedErrCode: middleware.ErrInvalidAccessTokenFormat.Code,
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) (*httptest.ResponseRecorder, *http.Request) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+
+				req := httptest.NewRequest("POST", "/auth/logout", nil)
+				res := httptest.NewRecorder()
+
+				req.Header.Set("Authorization", "invalid authorization header")
+
+				return res, req
+			},
+		},
+
+		{
+			name: "Expired access token",
+			expectedHttpCode: http.StatusOK,
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) (*httptest.ResponseRecorder, *http.Request) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+
+				jsonBody, err := json.Marshal(publicDto.LoginCredentials {
+					Login:    "Andrei.Karpukh2000@gmail.com",
+					Password: "fhigbgiwgwwhnwihwgwb",
+				})
+
+				require.NoError(t, err)
+
+				req := httptest.NewRequest("POST", "/auth/signup", bytes.NewBuffer(jsonBody))
+				res := httptest.NewRecorder()
+
+				router.ServeHTTP(res, req)
+				require.Equal(t, res.Code, http.StatusOK)
+
+				var foundRefreshTokenInCookies bool
+
+				cookies := res.Result().Cookies()
+				for _, cookie := range cookies {
+					if cookie.Name == "refresh_token" {
+						foundRefreshTokenInCookies = true
+						break
+					}
+				}
+
+				require.True(t, foundRefreshTokenInCookies)
+
+				var responseBody map[string]publicDto.JWTTokenDTO
+
+				err = json.Unmarshal(res.Body.Bytes(), &responseBody)
+				require.NoError(t, err)
+				require.NotEmpty(t, responseBody["access_token"])
+				require.NotEmpty(t, responseBody["refresh_token"])
+
+				req = httptest.NewRequest("POST", "/auth/logout", nil)
+
+				duration := os.Getenv("ACCESS_TTL_IN_MINUTES")
+				require.NotEmpty(t, duration)
+				durationInt, err := strconv.Atoi(duration)
+				require.NoError(t, err)
+
+				time.Sleep(time.Duration(durationInt) *time.Minute)
+
+				req.Header.Set("Authorization", "Bearer "+ responseBody["access_token"].Token)
+				
+				req.AddCookie(&http.Cookie{
+					Name:  "refresh_token",
+					Value: responseBody["refresh_token"].Token,
+				})
+
+				res = httptest.NewRecorder()
+
+				return res, req
+
+			},
+		},
+	}
+	
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, req := tc.beforeTestAction(t, testDB)
+
+			router.ServeHTTP(res, req)
+
+			assert.Equal(t, tc.expectedHttpCode, res.Code)
+
+			if tc.expectedErrCode != "" {
+				var response map[string]string
+				err := json.Unmarshal(res.Body.Bytes(), &response)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedErrCode, response["code"])
+			} else {
+				var responseBody map[string]string
+				err := json.Unmarshal(res.Body.Bytes(), &responseBody)
+				require.NoError(t, err)
+
+				assert.Equal(t, "LOGOUT_SUCCESSFUL", responseBody["code"])
+				assert.Equal(t, "clear_tokens", responseBody["message"])
+
+				if tc.name == "Expired access token" {
+					require.NotEmpty(t, res.Header().Get("New-Access-Token"))
+				}
+
+				var IsCookieContainsInvalidatedRefreshToken bool
+
+				cookies := res.Result().Cookies()
+				for _, cookie := range cookies {
+					if cookie.Name == "refresh_token" && cookie.Value == "" {
+						IsCookieContainsInvalidatedRefreshToken = true
+						break
+					}
+				}
+
+				assert.True(t, IsCookieContainsInvalidatedRefreshToken)
+			}
+
+		})
 	}
 }

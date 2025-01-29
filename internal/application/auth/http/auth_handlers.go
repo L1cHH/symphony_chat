@@ -196,21 +196,28 @@ func (ah *AuthHandler) LogIn(c *gin.Context) {
 func (ah *AuthHandler) LogOut(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"logout_error": "User id was not provided"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code": "USER_ID_WAS_NOT_PROVIDED",
+			"message": "user id was not provided",
+		})
 		return
 	}
 
 	err := ah.authenticationService.LogOut(c.Request.Context(), userID.(uuid.UUID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"logout_error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code": "LOGOUT_ERROR",
+			"message": "failed to log out",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	//Clearing refresh token cookie
 	ah.authenticationService.ClearRefreshTokenCookie(c)
 
-	c.JSON(200, gin.H{
-		"message": "Logout successful",
-		"action":  "clear_tokens",
+	c.JSON(http.StatusOK, gin.H{
+		"code": "LOGOUT_SUCCESSFUL",
+		"message":  "clear_tokens",
 	})
 }

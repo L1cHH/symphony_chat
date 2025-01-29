@@ -37,7 +37,7 @@ func AuthMiddleware(js *jwtService.JWTtokenService) gin.HandlerFunc {
 			return
 		}
 
-		if !errors.Is(err, jwt.ErrTokenNotValid) {
+		if !errors.Is(err, jwt.ErrTokenExpired) {
 			statusCode, response := mapValidateError(err)
 			ctx.AbortWithStatusJSON(statusCode, response)
 			return 
@@ -89,13 +89,15 @@ func mapValidateError(err error) (int, gin.H) {
 
 	switch  jwtError.Code{
 		case "INVALID_TOKEN_SIGNING_METHOD",
-		    "TOKEN_PARSING_FAILED",
+		    "INVALID_TOKEN_FORMAT",
+			"INVALID_TOKEN_SIGNATURE",
+			"PARSE_TOKEN_ERROR",
 			"INVALID_TOKEN_CLAIMS_FORMAT",
 			"SUB_CLAIM_WAS_NOT_PROVIDED_IN_TOKEN_CLAIMS",
 			"SUB_CLAIM_CANT_BE_PARSED_TO_UUID":
 			return http.StatusUnauthorized, gin.H{
 				"code": "INVALID_TOKEN_FORMAT",
-				"message": "invalid token format",
+				"message": jwtError.Message,
 				"details": jwtError.Err.Error(),
 			}
 		case "TOKEN_EXPIRED":

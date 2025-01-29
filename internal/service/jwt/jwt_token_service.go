@@ -157,15 +157,33 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 	})
 
 	if err != nil {
-		return uuid.Nil, &jwt.TokenError{
-			Code: "TOKEN_PARSING_FAILED",
-			Message: "token cant be parsed",
-			Err: err,
-		}
-	}
 
-	if !token.Valid {
-		return uuid.Nil, jwt.ErrTokenExpired
+		switch {
+		case errors.Is(err, JWT.ErrTokenExpired):
+			return uuid.Nil, jwt.ErrTokenExpired
+
+		case errors.Is(err, JWT.ErrTokenMalformed):
+			return uuid.Nil, &jwt.TokenError{
+				Code: "INVALID_TOKEN_FORMAT",
+				Message: "invalid token format",
+				Err: err,
+			}
+
+		case errors.Is(err, JWT.ErrTokenSignatureInvalid):
+			return uuid.Nil, &jwt.TokenError{
+				Code: "INVALID_TOKEN_SIGNATURE",
+				Message: "invalid token signature",
+				Err: err,
+			}
+
+		default:
+			return uuid.Nil, &jwt.TokenError{
+				Code: "PARSE_TOKEN_ERROR",
+				Message: "unexpected error while parsing token",
+				Err: err,
+			}
+		}
+
 	}
 
 	claims, ok := token.Claims.(JWT.MapClaims)
