@@ -6,26 +6,16 @@ import (
 	"github.com/google/uuid"
 )
 
-type JWTRefreshTokenDTO struct {
+type JWTTokenDTO struct {
 	AuthUserID uuid.UUID `json:"auth_user_id"`
-	Token      string    `json:"refresh_token"`
+	Token      string    `json:"token"`
 }
 
-type JWTAccessTokenDTO struct {
-	AuthUserID uuid.UUID `json:"auth_user_id"`
-	Token      string    `json:"access_token"`
-}
 
-func ToJWTRefreshTokenDTO(token jwt.JWTtoken) JWTRefreshTokenDTO {
-	return JWTRefreshTokenDTO{
+func ToJWTTokenDTO(token jwt.JWTtoken) JWTTokenDTO {
+	return JWTTokenDTO{
 		AuthUserID: token.GetAuthUserID(),
 		Token:      token.GetToken(),
 	}
 }
 
-func ToJWTAccessTokenDTO(token jwt.JWTtoken) JWTAccessTokenDTO {
-	return JWTAccessTokenDTO{
-		AuthUserID: token.GetAuthUserID(),
-		Token:      token.GetToken(),
-	}
-}

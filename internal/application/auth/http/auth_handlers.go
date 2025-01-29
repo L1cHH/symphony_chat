@@ -115,9 +115,9 @@ func (ah *AuthHandler) SignUp(c *gin.Context) {
 	//Setting only refresh token in cookies
 	ah.registrationService.SetRefreshTokenInHTTPCookie(c, tokens.RefreshToken.GetToken())
 
-	c.JSON(200, gin.H{
-		"access_token":  publicDto.ToJWTAccessTokenDTO(tokens.AccessToken),
-		"refresh_token": publicDto.ToJWTRefreshTokenDTO(tokens.RefreshToken),
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  publicDto.ToJWTTokenDTO(tokens.AccessToken),
+		"refresh_token": publicDto.ToJWTTokenDTO(tokens.RefreshToken),
 	})
 
 }
@@ -125,22 +125,71 @@ func (ah *AuthHandler) SignUp(c *gin.Context) {
 func (ah *AuthHandler) LogIn(c *gin.Context) {
 	var loginCredentials publicDto.LoginCredentials
 	if err := c.ShouldBindJSON(&loginCredentials); err != nil {
-		c.JSON(400, gin.H{"login_error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code": "INVALID_INPUT",
+			"message": "Invalid input format",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	tokens, err := ah.authenticationService.LogIn(c.Request.Context(),loginCredentials)
 	if err != nil {
-		c.JSON(400, gin.H{"login_error": err.Error()})
+		var authErr *users.AuthError
+		var tokenErr *jwt.TokenError
+
+		switch {
+		case errors.As(err, &authErr):
+			switch authErr.Code {
+			case "AUTH_USER_NOT_FOUND":
+				c.JSON(http.StatusNotFound, gin.H {
+					"code": "AUTH_USER_WITH_THIS_LOGIN_NOT_FOUND",
+					"message": "auth user with this login not found",
+				})
+
+			case "WRONG_PASSWORD":
+				c.JSON(http.StatusUnauthorized, gin.H {
+					"code": "WRONG_PASSWORD",
+					"message": "wrong password for this user",
+				})
+
+			default:
+				c.JSON(http.StatusInternalServerError, gin.H {
+					"code": "DATABASE_ERROR",
+					"message": "internal server error, please try again later",
+				})
+			}
+		
+		case errors.As(err, &tokenErr):
+			switch tokenErr.Code {
+			case "CREATE_JWT_TOKENS_ERROR":
+				c.JSON(http.StatusInternalServerError, gin.H {
+					"code": "TOKEN_GENERATION_FAILED",
+					"message": "failed to generate tokens, please try again later",
+				})
+
+			default:
+				c.JSON(http.StatusInternalServerError, gin.H {
+					"code": "INTERNAL_SERVER_ERROR",
+					"message": "internal server error, please try again later",
+				})
+			}
+		default:
+			//Unexpected error
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code": "INTERNAL_SERVER_ERROR",
+				"message": "internal server error, please try again later",
+			})
+		}
 		return
 	}
 
 	//Updating only refresh token in cookies
 	ah.authenticationService.UpdateRefreshTokenInHTTPCookie(c, tokens.RefreshToken.GetToken())
 	
-	c.JSON(200, gin.H{
-		"access_token":  publicDto.ToJWTAccessTokenDTO(tokens.AccessToken),
-		"refresh_token": publicDto.ToJWTRefreshTokenDTO(tokens.RefreshToken),
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  publicDto.ToJWTTokenDTO(tokens.AccessToken),
+		"refresh_token": publicDto.ToJWTTokenDTO(tokens.RefreshToken),
 	})
 }
 

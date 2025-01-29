@@ -23,8 +23,8 @@ func TestSignUpHandler(t *testing.T) {
 	testCases := []struct {
 		name string
 		credentials publicDto.LoginCredentials
-		expectedCode int
-		expectedErr string
+		expectedHttpCode int
+		expectedErrCode string
 		beforeTestAction func(t *testing.T, testDB *setup.TestDB)
 	}{
 		{
@@ -33,7 +33,7 @@ func TestSignUpHandler(t *testing.T) {
 				Login: "Bomj.Obichnyi@gmail.com",
 				Password: "eptakaktakto228",
 			},
-			expectedCode: http.StatusOK,
+			expectedHttpCode: http.StatusOK,
 			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
 				err := testDB.TruncateAllTables()
 				require.NoError(t, err)
@@ -45,8 +45,8 @@ func TestSignUpHandler(t *testing.T) {
 				Login: "Alexey.Gnida2003.gmail.com",
 				Password: "hesusOneLover335",
 			},
-			expectedCode: http.StatusConflict,
-			expectedErr: users.ErrLoginAlreadyExists.Code,
+			expectedHttpCode: http.StatusConflict,
+			expectedErrCode: users.ErrLoginAlreadyExists.Code,
 			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
 				err := testDB.TruncateAllTables()
 				require.NoError(t, err)
@@ -66,6 +66,71 @@ func TestSignUpHandler(t *testing.T) {
 				require.Equal(t, http.StatusOK, w.Code)
 			},
 		},
+		{
+			name: "Invalid login format (short Login)",
+			credentials: publicDto.LoginCredentials{
+				Login: "gmail",
+				Password: "kolomin.andrey2005",
+			},
+			expectedHttpCode: http.StatusBadRequest,
+			expectedErrCode: "INVALID_LOGIN_OR_PASSWORD_FORMAT",
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "Invalid login format (long Login)",
+			credentials: publicDto.LoginCredentials {
+				Login: "cnqibqvqgbnqognbqbqiomvevnevevne.gmail.com",
+				Password: "kolomin.andrey2005",
+			},
+			expectedHttpCode: http.StatusBadRequest,
+			expectedErrCode: "INVALID_LOGIN_OR_PASSWORD_FORMAT",
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "Invalid login format (disallowed symbols)",
+			credentials: publicDto.LoginCredentials {
+				Login: "cbevvbev%^gmail.com",
+				Password: "kolomin.andrey2005",
+			},
+			expectedHttpCode: http.StatusBadRequest,
+			expectedErrCode: "INVALID_LOGIN_OR_PASSWORD_FORMAT",
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "Invalid password format (short Password)",
+			credentials: publicDto.LoginCredentials {
+				Login: "Kolomin.Andrey@gmail.com",
+				Password: "12345",
+			},
+			expectedHttpCode: http.StatusBadRequest,
+			expectedErrCode: "INVALID_LOGIN_OR_PASSWORD_FORMAT",
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+			},
+		},
+		{
+			name: "Invalid password format (long Password)",
+			credentials: publicDto.LoginCredentials {
+				Login: "Kolomin.Andrey@gmail.com",
+				Password: "kolomin.andrey2.andrey2005",
+			},
+			expectedHttpCode: http.StatusBadRequest,
+			expectedErrCode: "INVALID_LOGIN_OR_PASSWORD_FORMAT",
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -82,16 +147,16 @@ func TestSignUpHandler(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			router.ServeHTTP(w, req)
 
-			require.Equal(t, tc.expectedCode, w.Code)
+			require.Equal(t, tc.expectedHttpCode, w.Code)
 
 
-			if tc.expectedErr != "" {
+			if tc.expectedErrCode != "" {
 				var response map[string]string
 				err = json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
-				require.Contains(t, response["code"], tc.expectedErr)
+				require.Contains(t, response["code"], tc.expectedErrCode)
 			} else {
-				var response map[string]publicDto.JWTAccessTokenDTO
+				var response map[string]publicDto.JWTTokenDTO
 				err = json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
 				require.NotEmpty(t, response["access_token"])
@@ -107,6 +172,149 @@ func TestSignUpHandler(t *testing.T) {
 				}
 
 				require.True(t, foundRefreshToken, "refresh token not found in cookies")
+			}
+		})
+	}
+}
+
+func TestLogInHandler(t *testing.T) {
+	testDB, err := setup.NewTestDB()
+	require.NoError(t, err)
+
+	defer func() {
+		err := testDB.Close()
+		require.NoError(t, err)
+	}()
+
+	router := authhttp.SetupRouter(t, testDB)
+
+	testCases := []struct {
+		name              string
+		credentials       publicDto.LoginCredentials
+		expectedHttpCode  int
+		expectedErrCode   string
+		beforeTestAction  func(t *testing.T, testDB *setup.TestDB)
+	}{
+		{
+			name: "Success login",
+			credentials: publicDto.LoginCredentials {
+				Login:    "Andrei.Karpukh2000@gmail.com",
+				Password: "andrei_kriper2004boi",
+			},
+			expectedHttpCode: http.StatusOK,
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+
+				bodyJson, err := json.Marshal(publicDto.LoginCredentials {
+					Login:    "Andrei.Karpukh2000@gmail.com",
+					Password: "andrei_kriper2004boi",
+				})
+
+				require.NoError(t, err)
+
+				req := httptest.NewRequest("POST", "/auth/signup", bytes.NewBuffer(bodyJson))
+				res := httptest.NewRecorder()
+				router.ServeHTTP(res, req)
+				require.Equal(t, res.Code, http.StatusOK)
+			},
+		},
+
+		{
+			name: "Wrong password",
+			credentials: publicDto.LoginCredentials {
+				Login:    "Andrei.Karpukh2000@gmail.com",
+				Password: "andrei_kriper2004boi1",
+			},
+			expectedHttpCode: http.StatusUnauthorized,
+			expectedErrCode:  "WRONG_PASSWORD",
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+
+				bodyJson, err := json.Marshal(publicDto.LoginCredentials {
+					Login:    "Andrei.Karpukh2000@gmail.com",
+					Password: "andrei_kriper2004boi",
+				})
+
+				require.NoError(t, err)
+
+				req := httptest.NewRequest("POST", "/auth/signup", bytes.NewBuffer(bodyJson))
+				res := httptest.NewRecorder()
+				router.ServeHTTP(res, req)
+				require.Equal(t, res.Code, http.StatusOK)
+			},
+		},
+
+		{
+			name: "User not found",
+			credentials: publicDto.LoginCredentials {
+				Login:    "Andrei.Karpukh2000@gmail.com",
+				Password: "andrei_kriper2004boi1",
+			},
+			expectedHttpCode: http.StatusNotFound,
+			expectedErrCode:  "AUTH_USER_WITH_THIS_LOGIN_NOT_FOUND",
+			beforeTestAction: func(t *testing.T, testDB *setup.TestDB) {
+				err := testDB.TruncateAllTables()
+				require.NoError(t, err)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.beforeTestAction(t, testDB)
+
+			bodyJson, err := json.Marshal(tc.credentials)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest("POST", "/auth/login", bytes.NewBuffer(bodyJson))
+			res := httptest.NewRecorder()
+			router.ServeHTTP(res, req)
+
+			require.Equal(t, tc.expectedHttpCode, res.Code)
+
+			if tc.expectedErrCode != "" {
+				var response map[string]string
+
+				err := json.Unmarshal(res.Body.Bytes(), &response)
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedErrCode, response["code"])
+				require.Empty(t, response["access_token"])
+				require.Empty(t, response["refresh_token"])
+
+				var foundRefreshTokenInCookies bool
+
+				cookies := res.Result().Cookies()
+
+				for _, cookie := range cookies {
+					if cookie.Name == "refresh_token" {
+						foundRefreshTokenInCookies = true
+						break
+					}
+				}
+
+				require.False(t, foundRefreshTokenInCookies)
+
+			} else {
+				var response map[string]publicDto.JWTTokenDTO
+				err := json.Unmarshal(res.Body.Bytes(), &response)
+				require.NoError(t, err)
+				require.NotEmpty(t, response["access_token"])
+				require.NotEmpty(t, response["refresh_token"])
+
+				var foundRefreshTokenInCookies bool
+
+				cookies := res.Result().Cookies()
+
+				for _, cookie := range cookies {
+					if cookie.Name == "refresh_token" {
+						foundRefreshTokenInCookies = true
+						break
+					}
+				}
+
+				require.True(t, foundRefreshTokenInCookies)
 			}
 		})
 	}

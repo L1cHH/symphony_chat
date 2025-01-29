@@ -83,6 +83,7 @@ func (tbd *TestDB) TruncateAllTables() error {
 func (tdb *TestDB) Close() error {
 	if tdb.DB != nil {
 		tdb.DB.Close()
+		TestDBInstance = nil
 	}
 	return nil
 }

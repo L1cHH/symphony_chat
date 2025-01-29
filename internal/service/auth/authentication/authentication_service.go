@@ -4,6 +4,7 @@ import (
 	"context"
 	publicDto "symphony_chat/internal/application/dto"
 	tx "symphony_chat/internal/application/transaction"
+	"symphony_chat/internal/domain/jwt"
 	"symphony_chat/internal/domain/users"
 	authdto "symphony_chat/internal/dto/auth"
 	jwtService "symphony_chat/internal/service/jwt"
@@ -64,9 +65,12 @@ func (as *AuthenticationService) LogIn(ctx context.Context,userInput publicDto.L
 	err := as.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
 		authUser, err := as.userRepo.GetAuthUserByLogin(txCtx,userInput.Login)
 		if err != nil {
+			if err == users.ErrAuthUserNotFound {
+				return err
+			}
 			return &users.AuthError{
-				Code: "LOGIN_ERROR",
-				Message: "auth user not found",
+				Code: "GET_AUTH_USER_ERROR",
+				Message: "failed to get auth_user by login from storage",
 				Err: err,
 			}
 		}
@@ -77,8 +81,8 @@ func (as *AuthenticationService) LogIn(ctx context.Context,userInput publicDto.L
 
 		authTokens, err = as.jwtService.GetUpdatedPairTokens(txCtx, authUser.GetID())
 		if err != nil {
-			return &users.AuthError{
-				Code: "LOGIN_ERROR",
+			return &jwt.TokenError{
+				Code: "CREATE_JWT_TOKENS_ERROR",
 				Message: "failed to generate new jwt tokens",
 				Err: err,
 			}
