@@ -147,27 +147,31 @@ func (js *JWTtokenService) GetCreatedPairTokens(txCtx context.Context, userID uu
 func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) {
 	token, err := JWT.Parse(tokenString, func(t *JWT.Token) (interface{}, error) {
 		if _, ok := t.Method.(*JWT.SigningMethodHMAC); !ok {
-			return nil, errors.New("wrong alg method in jwt token. So token cant be parsed")
+			return nil, &jwt.TokenError{
+				Code: "INVALID_TOKEN_SIGNING_METHOD",
+				Message: "invalid token signing method",
+				Err: errors.New("invalid token signing method"),
+			}
 		}
 		return []byte(js.jwtConfig.SecretKey), nil
 	})
 
 	if err != nil {
 		return uuid.Nil, &jwt.TokenError{
-			Code: "TOKEN_NOT_VALID",
+			Code: "TOKEN_PARSING_FAILED",
 			Message: "token cant be parsed",
 			Err: err,
 		}
 	}
 
 	if !token.Valid {
-		return uuid.Nil, jwt.ErrTokenNotValid
+		return uuid.Nil, jwt.ErrTokenExpired
 	}
 
 	claims, ok := token.Claims.(JWT.MapClaims)
 	if !ok {
 		return uuid.Nil, &jwt.TokenError{
-			Code: "TOKEN_NOT_VALID",
+			Code: "INVALID_TOKEN_CLAIMS_FORMAT",
 			Message: "invalid token claims format",
 			Err: errors.New("invalid token claims format"),
 		}
@@ -176,7 +180,7 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 	userIDStr, ok := claims["sub"].(string)
 	if !ok {
 		return uuid.Nil, &jwt.TokenError{
-			Code: "TOKEN_NOT_VALID",
+			Code: "SUB_CLAIM_WAS_NOT_PROVIDED_IN_TOKEN_CLAIMS",
 			Message: "sub claim was not provided in token claims",
 			Err: errors.New("sub claim was not provided in token claims"),
 		}
@@ -185,7 +189,7 @@ func (js *JWTtokenService) ValidateToken(tokenString string) (uuid.UUID, error) 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		return uuid.Nil, &jwt.TokenError{
-			Code: "TOKEN_NOT_VALID",
+			Code: "SUB_CLAIM_CANT_BE_PARSED_TO_UUID",
 			Message: "sub claim cant be parsed to uuid",
 			Err: err,
 		}

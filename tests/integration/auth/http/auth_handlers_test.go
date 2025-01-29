@@ -319,3 +319,27 @@ func TestLogInHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestLogOutHandler(t *testing.T) {
+	testDB, err := setup.NewTestDB()
+	require.NoError(t, err)
+
+	defer func() {
+		err := testDB.Close()
+		require.NoError(t, err)
+	}()
+
+	router := authhttp.SetupRouter(t, testDB)
+
+	testCases := []struct {
+		name   				string
+		credentials 		publicDto.LoginCredentials
+		expectedHttpCode 	int
+		expectedErrCode 	string
+		beforeTestAction 	func(t *testing.T, testDB *setup.TestDB)
+	}{
+		{
+			name: "Success Logout",
+		},
+	}
+}
