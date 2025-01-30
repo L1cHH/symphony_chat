@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,11 +53,11 @@ func NewChatUser(authUSerID uuid.UUID, username string, status UserStatus, creat
 }
 
 type ChatUserRepository interface {
-	GetChatUserByID(uuid.UUID) (ChatUser, error)
-	GetChatUserByUsername(string) (ChatUser, error)
-	AddChatUser(ChatUser) error
-	DeleteChatUserByID(uuid.UUID) error
-	UpdateUsername(uuid.UUID, string) error
-	UpdateStatus(uuid.UUID, UserStatus) error
-	UpdateLastSeenAt(uuid.UUID, time.Time) error
+	GetChatUserByID(ctx context.Context, chatUserId uuid.UUID) (ChatUser, error)
+	GetChatUserByUsername(ctx context.Context, username string) (ChatUser, error)
+	AddChatUser(ctx context.Context, chatUser ChatUser) error
+	DeleteChatUserByID(ctx context.Context, chatUserId uuid.UUID) error
+	UpdateUsername(ctx context.Context, chatUserId uuid.UUID, newUsername string) error
+	UpdateStatus(ctx context.Context, chatUserId uuid.UUID, newStatus UserStatus) error
+	UpdateLastSeenAt(ctx context.Context, chatUserId uuid.UUID, newLastSeenAt time.Time) error
 }
