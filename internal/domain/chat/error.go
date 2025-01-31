@@ -19,4 +19,9 @@ var (
 		Code: "WRONG_CHAT_NAME",
 		Message: "wrong chat name",
 	}
+
+	ErrChatNotFound = &ChatError {
+		Code: "CHAT_NOT_FOUND",
+		Message: "chat not found",
+	}
 )

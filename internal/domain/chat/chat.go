@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -47,10 +48,19 @@ func NewChat(name string) (Chat, error) {
 	}, nil
 }
 
+func ChatFromDB(id uuid.UUID, name string, createdAt time.Time, updatedAt time.Time) Chat {
+	return Chat {
+		id: id, 
+		name: name,
+		createdAt: createdAt,
+		updatedAt: updatedAt,
+	}
+}
+
 type ChatRepository interface {
-	GetChatByID(uuid.UUID) (Chat, error)
-	AddChat(Chat) error
-	UpdateChatName(uuid.UUID, string) error
-	UpdateChatUpdatedAt(chatID uuid.UUID, updatedTime time.Time) error
-	DeleteChat(uuid.UUID) error
+	GetChatByID(context.Context, uuid.UUID) (Chat, error)
+	AddChat(context.Context, Chat) error
+	UpdateChatName(context.Context, uuid.UUID, string) error
+	UpdateChatUpdatedAt(ctx context.Context, chatID uuid.UUID, updatedAt time.Time) error
+	DeleteChat(context.Context, uuid.UUID) error
 }
