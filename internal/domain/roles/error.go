@@ -18,4 +18,9 @@ var (
 		Code: "WRONG_CHAT_ROLE_NAME",
 		Message: "wrong chat role name",
 	}
+
+	ErrChatRoleNotFound = &ChatRoleError {
+		Code: "CHAT_ROLE_NOT_FOUND",
+		Message: "chat role not found",
+	}
 )

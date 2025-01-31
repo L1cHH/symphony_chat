@@ -48,6 +48,14 @@ func NewChatRole(id uuid.UUID, name string, permissions []Permission) (ChatRole,
 	}, nil
 }
 
+func ChatRoleFromDB(id uuid.UUID, name string, permissions []Permission) ChatRole {
+	return ChatRole{
+		id: id,
+		name: name,
+		permissions: permissions,
+	}
+}
+
 
 type ChatRoleRepository interface {
 	GetChatRoleByID(ctx context.Context, id uuid.UUID) (ChatRole, error)
