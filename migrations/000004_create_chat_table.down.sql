@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS chat;
+DROP EXTENSION IF EXISTS "uuid-ossp"; 
