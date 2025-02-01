@@ -35,7 +35,7 @@ func (pr *PostgresChatUserRepo) GetChatUserById(chat_user_id uuid.UUID) (users.C
 		return users.ChatUser{}, fmt.Errorf("failed to get chat_user by id: %w", err)
 	}
 
-	return users.NewChatUser(id, username, status, created_at, last_seen_at), nil
+	return users.ChatUserFromDB(id, username, status, created_at, last_seen_at), nil
 }
 
 func (pr *PostgresChatUserRepo) GetChatUserByUsername(chat_user_username string) (users.ChatUser, error) {
@@ -54,7 +54,7 @@ func (pr *PostgresChatUserRepo) GetChatUserByUsername(chat_user_username string)
 		return users.ChatUser{}, fmt.Errorf("failed to get chat_user by username: %w", err)
 	}
 
-	return users.NewChatUser(id, username, status, created_at, last_seen_at), nil
+	return users.ChatUserFromDB(id, username, status, created_at, last_seen_at), nil
 }
 
 func (pr *PostgresChatUserRepo) AddChatUser(chat_user users.ChatUser) error {

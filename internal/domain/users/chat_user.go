@@ -52,6 +52,16 @@ func NewChatUser(authUSerID uuid.UUID, username string, status UserStatus, creat
 	}
 }
 
+func ChatUserFromDB(id uuid.UUID, username string, status UserStatus, createdAt time.Time, lastSeenAt time.Time) ChatUser {
+	return ChatUser{
+		id:         id,
+		username:   username,
+		status:     status,
+		createdAt:  createdAt,
+		lastSeenAt: lastSeenAt,
+	}
+}
+
 type ChatUserRepository interface {
 	GetChatUserByID(ctx context.Context, chatUserId uuid.UUID) (ChatUser, error)
 	GetChatUserByUsername(ctx context.Context, username string) (ChatUser, error)
