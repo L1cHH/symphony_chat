@@ -1,15 +1,22 @@
 package service
 
 import (
-	"symphony_chat/internal/domain/users"
+	"context"
+	"symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/chat"
+	"symphony_chat/internal/domain/messages"
 	"symphony_chat/internal/domain/roles"
+	"symphony_chat/internal/domain/users"
+
+	"github.com/google/uuid"
 )
 
 type ChatService struct {
-	chatUserRepo   users.ChatUserRepository
-	chatRepo       chat.ChatRepository
-	chatRolesRepo  roles.ChatRoleRepository
+	chatUserRepo        users.ChatUserRepository
+	chatRepo            chat.ChatRepository
+	chatRolesRepo       roles.ChatRoleRepository
+	chatMessageRepo     messages.ChatMessageRepository
+	transactionManager  transaction.TransactionManager
 }
 
 type ChatServiceConfiguration func(*ChatService) error
@@ -35,6 +42,21 @@ func WithChatRolesRepository(chatRolesRepo roles.ChatRoleRepository) ChatService
 	}
 }
 
+func WithChatMessageRepository(chatMessageRepo messages.ChatMessageRepository) ChatServiceConfiguration {
+	return func(s *ChatService) error {
+		s.chatMessageRepo = chatMessageRepo
+		return nil
+	}
+}
+
+func WithTransactionManager(tm transaction.TransactionManager) ChatServiceConfiguration {
+	return func(s *ChatService) error {
+		s.transactionManager = tm
+		return nil
+	}
+}
+
+
 func NewChatService(configs ...ChatServiceConfiguration) (*ChatService, error) {
 	cs := &ChatService{}
 
@@ -46,6 +68,30 @@ func NewChatService(configs ...ChatServiceConfiguration) (*ChatService, error) {
 	}
 
 	return cs, nil
+}
+
+
+func (cs *ChatService) CreateChat(ctx context.Context, createrID uuid.UUID, chatName string) (chat.Chat, error) {
+	createdChat, err := chat.NewChat(chatName)
+	if err != nil {
+		return chat.Chat{}, err
+	}
+
+	err = cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		if err = cs.chatRepo.AddChat(txCtx, createdChat); err != nil {
+			return err
+		}
+
+		
+
+		return nil
+	})
+
+	if err != nil {
+		return chat.Chat{}, err
+	}
+
+	return createdChat, nil
 }
 
 
