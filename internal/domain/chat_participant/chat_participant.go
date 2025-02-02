@@ -1,4 +1,4 @@
-package users
+package chatparticipant
 
 import (
 	"context"
@@ -49,13 +49,13 @@ func ChatParticipantFromDB(chatID uuid.UUID, userID uuid.UUID, roleID uuid.UUID,
 }
 
 type ChatParticipantRepository interface {
-	GetChatParticipantByID(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) (ChatParticipant, error)
+	GetChatParticipantByIDs(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) (ChatParticipant, error)
 	GetAllChatParticipantsByChatID(ctx context.Context, chatID uuid.UUID) ([]ChatParticipant, error)
 
-	AddChatParticipant(ctx context.Context, participant ChatParticipant) error
+	AddChatParticipant(ctx context.Context, chatParticipant ChatParticipant) error
 
 	UpdateChatParticipantRole(ctx context.Context, chatID uuid.UUID, userID uuid.UUID, newRoleID uuid.UUID) error
 	
-	DeleteChatPaicipant(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) error
-	DeleteAllChatParticipantsByChatID(ctx context.Context, chatID uuid.UUID) error
+	DeleteChatParticipant(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) error
+	DeleteAllChatParticipants(ctx context.Context, chatID uuid.UUID, ownerID uuid.UUID) error
 }

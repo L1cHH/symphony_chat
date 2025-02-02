@@ -53,7 +53,7 @@ func (pr *PostgresChatRepo) GetChatByID(ctx context.Context, chat_id uuid.UUID) 
 func (pr *PostgresChatRepo) AddChat(ctx context.Context, chatDB chat.Chat) error {
 	tx := pr.GetTransaction(ctx)
 
-	_, err := tx.ExecContext(
+	result, err := tx.ExecContext(
 		ctx,
 		"INSERT INTO chats (id, name, created_at, updated_at) VALUES ($1, $2, $3, $4)",
 		chatDB.GetID(), chatDB.GetName(), chatDB.GetCreatedAt(), chatDB.GetUpdatedAt(),
@@ -63,6 +63,23 @@ func (pr *PostgresChatRepo) AddChat(ctx context.Context, chatDB chat.Chat) error
 		return &chat.ChatError {
 			Code:    "DATABASE_ERROR",
 			Message: "failed to add chat",
+			Err:     err,
+		}
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return &chat.ChatError {
+			Code: "DATABASE_ERROR",
+			Message: "failed to get affected rows after added chat",
+			Err:     err,
+		}
+	}
+
+	if rowsAffected == 0 {
+		return &chat.ChatError {
+			Code: "UNEXPECTED_ERROR",
+			Message: "chat with that id already exists",
 			Err:     err,
 		}
 	}
