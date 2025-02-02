@@ -91,7 +91,7 @@ func (pr *PostgresChatRepo) UpdateChatName(ctx context.Context, chatId uuid.UUID
 	if err != nil {
 		return &chat.ChatError {
 			Code: "DATABASE_ERROR",
-			Message: "failed to update chat name",
+			Message: "failed to get affected rows after updated chat name",
 			Err:     err,
 		}
 	}

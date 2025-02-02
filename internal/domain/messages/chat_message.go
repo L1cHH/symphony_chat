@@ -21,6 +21,7 @@ type MessageStatus string
 const (
 	Sent MessageStatus = "sent"
 	Received MessageStatus = "received"
+	Edited MessageStatus = "edited" 
 	Read MessageStatus = "read"
 )
 
@@ -73,8 +74,13 @@ func ChatMessageFromDB(id uuid.UUID, chatID uuid.UUID, senderID uuid.UUID, conte
 type ChatMessageRepository interface {
 	GetChatMessageById(ctx context.Context, messageID uuid.UUID) (ChatMessage, error)
 	GetChatMessagesByChatId(ctx context.Context, chatID uuid.UUID) ([]ChatMessage, error)
+	GetChatMessagesByContentAndChatID(ctx context.Context, content string, chatID uuid.UUID) ([]ChatMessage, error)
+
 	AddChatMessage(ctx context.Context, message ChatMessage) error
+
 	UpdateChatMessageContent(ctx context.Context, messageID uuid.UUID, content string) error
 	UpdateChatMessageStatus(ctx context.Context, messageID uuid.UUID, status MessageStatus) error
+	
 	DeleteChatMessage(ctx context.Context, messageID uuid.UUID) error
+	DeleteAllChatMessagesByChatID(ctx context.Context, chatID uuid.UUID) error
 }
