@@ -12,6 +12,48 @@ type ChatRole struct {
 	permissions []Permission
 }
 
+var (
+	OwnerChatRole ChatRole = ChatRole {
+		id: uuid.MustParse("11111111-1111-1111-1111-111111111111"),
+		name: "OWNER",
+		permissions: []Permission{
+			PermissionDeleteChat,
+			PermissionUpdateChatName,
+			PermissionRemoveMember,
+			PermissionManageRoles,
+			PermissionAddMember,
+			PermissionAddMessage,
+			PermissionDeleteMessage,
+			PermissionEditMessage,
+		},
+	}
+
+	AdminChatRole ChatRole = ChatRole {
+		id: uuid.MustParse("22222222-2222-2222-2222-222222222222"),
+		name: "ADMIN",
+		permissions: []Permission{
+			PermissionAddMember,
+			PermissionRemoveMember,
+			PermissionUpdateChatName,
+			PermissionAddMessage,
+			PermissionDeleteMessage,
+			PermissionEditMessage,
+		},
+	}
+
+	MemberChatRole ChatRole = ChatRole {
+		id: uuid.MustParse("33333333-3333-3333-3333-333333333333"),
+		name: "MEMBER",
+		permissions: []Permission {
+			PermissionAddMember,
+			PermissionUpdateChatName,
+			PermissionAddMessage,
+			PermissionDeleteMessage,
+			PermissionEditMessage,
+		},
+	}
+)
+
 type Permission string 
 
 const (
@@ -21,6 +63,8 @@ const (
 	PermissionDeleteChat Permission = "DELETE_CHAT"
 	PermissionUpdateChatName Permission = "UPDATE_CHAT_NAME"
 	PermissionAddMessage Permission = "ADD_MESSAGE_TO_CHAT"
+	PermissionDeleteMessage Permission = "DELETE_MESSAGE_FROM_CHAT"
+	PermissionEditMessage Permission = "EDIT_MESSAGE_IN_CHAT"
 )
 
 func (c ChatRole) GetID() uuid.UUID {
@@ -35,19 +79,6 @@ func (c ChatRole) GetPermissions() []Permission {
 	return c.permissions
 }
 
-func NewChatRole(id uuid.UUID, name string, permissions []Permission) (ChatRole, error) {
-	
-	if len(name) == 0 {
-		return ChatRole{}, ErrWrongChatRoleName
-	}
-	
-	return ChatRole{
-		id: id,
-		name: name,
-		permissions: permissions,
-	}, nil
-}
-
 func ChatRoleFromDB(id uuid.UUID, name string, permissions []Permission) ChatRole {
 	return ChatRole{
 		id: id,
@@ -56,12 +87,9 @@ func ChatRoleFromDB(id uuid.UUID, name string, permissions []Permission) ChatRol
 	}
 }
 
-
 type ChatRoleRepository interface {
 	GetChatRoleByID(ctx context.Context, id uuid.UUID) (ChatRole, error)
 	GetChatRoleByName(ctx context.Context, name string) (ChatRole, error)
-	AddChatRole(ctx context.Context, chatRole ChatRole) error
-	DeleteChatRoleByID(ctx context.Context, id uuid.UUID) error
-	UpdateChatRolePermissions(ctx context.Context, id uuid.UUID, newPermissions []Permission) error
+	GetChatRoles(ctx context.Context) ([]ChatRole, error)
 }
 

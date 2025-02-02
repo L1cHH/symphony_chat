@@ -8,7 +8,6 @@ import (
 	"symphony_chat/internal/domain/roles"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 )
 
 type PostgresChatRoleRepo struct {
@@ -118,132 +117,76 @@ func (pr *PostgresChatRoleRepo) GetChatRoleByName(ctx context.Context, roleName 
 
 }
 
-func (pr *PostgresChatRoleRepo) AddChatRole(ctx context.Context, chatRole roles.ChatRole) error {
-
+func (pr *PostgresChatRoleRepo) GetChatRoles(ctx context.Context) ([]roles.ChatRole, error) {
+	
 	tx := pr.GetTransaction(ctx)
 
-	permissions := make([]string, len(chatRole.GetPermissions()))
-
-	for i, permission := range chatRole.GetPermissions() {
-		permissions[i] = string(permission)
-	}
-
-	result, err := tx.ExecContext(
+	rows, err := tx.QueryContext(
 		ctx,
-		`INSERT INTO chat_role (id, name) VALUES ($1, $2)
-		INSERT INTO chat_role_permission (role_id, permission)
-		SELECT $1, unnest($3::text[])`,
-		chatRole.GetID(), chatRole.GetName(), pq.Array(permissions),
+		`SELECT id, name, permissions FROM chat_role
+		INNER JOIN chat_role_permission ON chat_role.id = chat_role_permission.role_id`,
 	)
 
 	if err != nil {
-		return &roles.ChatRoleError{
+		if errors.Is(err, sql.ErrNoRows) {
+			return []roles.ChatRole{}, roles.ErrChatRoleNotFound
+		}
+
+		return []roles.ChatRole{}, &roles.ChatRoleError{
 			Code: "DATABASE_ERROR",
-			Message: "failed to add chat role",
+			Message: "failed to get chat roles from storage",
 			Err: err,
 		}
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return &roles.ChatRoleError{
-			Code: "DATABASE_ERROR",
-			Message: "failed to get affected rows after added chat role",
-			Err: err,
+	defer rows.Close()
+
+	foundRoles := make(map[uuid.UUID]struct {
+		name string
+		permissions []roles.Permission
+	})
+
+	for rows.Next() {
+		var id uuid.UUID
+		var name string
+		var permission roles.Permission
+
+		if err := rows.Scan(&id, &name, &permission); err != nil {
+			return []roles.ChatRole{}, &roles.ChatRoleError{
+				Code: "DATABASE_ERROR",
+				Message: "failed to scan chat role",
+				Err: err,
+			}
 		}
-	}
 
-	//1 row from chat_role table + len(permissions) rows from chat_role_permission table
-	expectedRowsAffected := int64(len(chatRole.GetPermissions()) + 1)
+		role, exists := foundRoles[id]
+		if !exists {
+			role = struct{
+				name string; 
+				permissions []roles.Permission
+			}{
+				name: name,
+				permissions: make([]roles.Permission, 0),
+			}
 
-	if rowsAffected != expectedRowsAffected {
-		return &roles.ChatRoleError{
-			Code: "DATABASE_ERROR",
-			Message: "failed to fully add chat role or chat role permissions",
+			role.permissions = append(role.permissions, permission)
+
+			foundRoles[id] = role
+
+		} else {
+			role.permissions = append(role.permissions, permission)
+			foundRoles[id] = role
 		}
+
 	}
 
-	return nil
-}
+	chatRoles := make([]roles.ChatRole, 0, len(foundRoles))
 
-func (pr *PostgresChatRoleRepo) DeleteChatRoleByID(ctx context.Context, roleID uuid.UUID) error {
-	tx := pr.GetTransaction(ctx)
-
-	result, err := tx.ExecContext(
-		ctx,
-		`DELETE FROM chat_role_permission WHERE role_id = $1
-		DELETE FROM chat_role WHERE id = $1`,
-		roleID,
-	)
-
-	if err != nil {
-		return &roles.ChatRoleError{
-			Code: "DATABASE_ERROR",
-			Message: "failed to delete chat role",
-			Err: err,
-		}
+	for id, role := range foundRoles {
+		chatRoles = append(chatRoles, roles.ChatRoleFromDB(id, role.name, role.permissions))
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return &roles.ChatRoleError{
-			Code: "DATABASE_ERROR",
-			Message: "failed to get affected rows after deleted chat role",
-			Err: err,
-		}
-	}
-
-	if rowsAffected == 0 {
-		return roles.ErrChatRoleNotFound
-	}
-
-	return nil
-}
-
-//This method add new permisions to role without changing existing ones
-func (pr *PostgresChatRoleRepo) UpdateChatRolePermissions(ctx context.Context, roleID uuid.UUID, newPermissions []roles.Permission) error {
-	tx := pr.GetTransaction(ctx)
-
-	permissions := make([]string, len(newPermissions))
-
-	for i, p := range newPermissions {
-		permissions[i] = string(p)
-	}
-
-	result, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO chat_role_permission (role_id, permission)
-		VALUES ($1, unnest($2::text[]))`,
-		roleID, pq.Array(permissions),
-	)
-
-	if err != nil {
-		return &roles.ChatRoleError{
-			Code: "DATABASE_ERROR",
-			Message: "failed to update chat role permissions",
-			Err: err,
-		}
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return &roles.ChatRoleError{
-			Code: "DATABASE_ERROR",
-			Message: "failed to get affected rows after updated chat role permissions",
-			Err: err,
-		}
-	}
-
-	expectedRowsAffected := int64(len(newPermissions))
-
-	if rowsAffected != expectedRowsAffected {
-		return &roles.ChatRoleError {
-			Code: "DATABASE_ERROR",
-			Message: "failed to fully update chat role permissions",
-		}
-	}
-
-	return nil
+	return chatRoles, nil
 }
 
 func (pr *PostgresChatRoleRepo) GetTransaction(ctx context.Context) transaction.DBTX {
