@@ -18,4 +18,9 @@ var (
 		Code: "CHAT_MESSAGE_NOT_FOUND",
 		Message: "chat message with that id not found in storage",
 	}
+
+	ErrEmptyChatMessage = &ChatMessageError {
+		Code: "EMPTY_CHAT_MESSAGE",
+		Message: "chat message cannot be empty",
+	}
 )

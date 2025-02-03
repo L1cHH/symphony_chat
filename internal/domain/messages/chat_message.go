@@ -75,6 +75,7 @@ type ChatMessageRepository interface {
 	GetChatMessageById(ctx context.Context, messageID uuid.UUID) (ChatMessage, error)
 	GetChatMessagesByChatId(ctx context.Context, chatID uuid.UUID) ([]ChatMessage, error)
 	GetChatMessagesByContentAndChatID(ctx context.Context, content string, chatID uuid.UUID) ([]ChatMessage, error)
+	GetChatMessageSenderID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error)
 
 	AddChatMessage(ctx context.Context, message ChatMessage) error
 

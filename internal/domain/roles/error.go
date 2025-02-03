@@ -28,4 +28,9 @@ var (
 		Code: "INSUFFICIENT_PERMISSIONS",
 		Message: "user does not have required permissions for this action",
 	}
+
+	ErrWrongSender = &ChatRoleError {
+		Code: "NOT_SENDER",
+		Message: "user is not sender of this message",
+	}
 )

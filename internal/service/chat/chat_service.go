@@ -283,6 +283,92 @@ func (cs *ChatService) LeaveChat(ctx context.Context, chatID uuid.UUID, leavingU
 	return nil
 }
 
+func (cs *ChatService) SendMessage(ctx context.Context, chatID uuid.UUID, senderID uuid.UUID, message string) (uuid.UUID,error) {
+	isEnoughPermissions, err := cs.IsUserHasEnoughPermissions(ctx, chatID, senderID, roles.PermissionAddMessage)
+	if err != nil {
+		return uuid.Nil,err
+	}
+
+	if !isEnoughPermissions {
+		return uuid.Nil,roles.ErrInsufficientPermissions
+	}
+
+	var messageID uuid.UUID
+
+	err = cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		messageID, err = cs.CreateChatMessage(txCtx, chatID, senderID, message)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return messageID, nil
+}
+
+func (cs *ChatService) EditMessage(ctx context.Context, chatID uuid.UUID, messageID uuid.UUID, senderID uuid.UUID, newMessage string) (string, error) {
+	err := cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+
+		senderIDfromDB, err := cs.chatMessageRepo.GetChatMessageSenderID(txCtx, messageID)
+		if err != nil {
+			return err
+		}
+
+		if senderIDfromDB != senderID {
+			return roles.ErrWrongSender
+		}
+
+		err = cs.chatMessageRepo.UpdateChatMessageContent(txCtx, messageID, newMessage)
+		if err != nil {
+			return err
+		}
+
+		err = cs.chatMessageRepo.UpdateChatMessageStatus(txCtx, messageID, messages.Edited)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return newMessage, nil
+}
+
+func (cs *ChatService) DeleteMessage(ctx context.Context, chatID uuid.UUID, messageID uuid.UUID, senderID uuid.UUID) error {
+	err := cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		
+		senderIDfromDB, err := cs.chatMessageRepo.GetChatMessageSenderID(txCtx, messageID)
+		if err != nil {
+			return err
+		}
+
+		if senderIDfromDB != senderID {
+			return roles.ErrWrongSender
+		}
+
+		err = cs.chatMessageRepo.DeleteChatMessage(txCtx, messageID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (cs *ChatService) CreateChatOwner(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) error {
 	chatOwner := chatparticipant.NewChatParticipant(chatID, userID, roles.OwnerChatRole.GetID(), time.Now())
 	err := cs.chatParticipantRepo.AddChatParticipant(ctx, chatOwner)
@@ -299,6 +385,22 @@ func (cs *ChatService) CreateChatMember(ctx context.Context, chatID uuid.UUID, u
 		return err
 	}
 	return nil
+}
+
+func (cs *ChatService) CreateChatMessage(ctx context.Context, chatID uuid.UUID, senderID uuid.UUID, message string) (uuid.UUID, error) {
+
+	if message == "" {
+		return uuid.Nil, messages.ErrEmptyChatMessage
+	}
+
+	chatMessage := messages.NewChatMessage(chatID, senderID, message, time.Now(), messages.Sent)
+
+	err := cs.chatMessageRepo.AddChatMessage(ctx, chatMessage)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return chatMessage.GetID(), nil
 }
 
 func (cs *ChatService) IsUserHasEnoughPermissions(ctx context.Context, chatID uuid.UUID, userID uuid.UUID, requiredPermissions ...roles.Permission) (bool, error) {

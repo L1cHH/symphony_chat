@@ -108,6 +108,33 @@ func (pr *PostgresChatMessageRepo) GetChatMessagesByChatID(ctx context.Context, 
 	return chatMessages, nil
 }
 
+func (pr *PostgresChatMessageRepo) GetChatMessageSenderID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error) {
+	tx := pr.GetTransaction(ctx)
+
+	var senderID uuid.UUID
+
+	err := tx.QueryRowContext(
+		ctx,
+		`SELECT sender_id
+		FROM chat_message WHERE id = $1`,
+		messageID,
+	).Scan(&senderID)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return uuid.Nil, messages.ErrChatMessageNotFound
+		}
+
+		return uuid.Nil, &messages.ChatMessageError {
+			Code: "DATABASE_ERROR",
+			Message: "failed to get chat message sender id",
+			Err: err,
+		}
+	}
+
+	return senderID, nil
+}
+
 func (pr *PostgresChatMessageRepo) GetChatMessagesByContentAndChatID(ctx context.Context, content string, chatID uuid.UUID) ([]messages.ChatMessage, error) {
 	tx := pr.GetTransaction(ctx)
 
