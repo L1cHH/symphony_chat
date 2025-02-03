@@ -6,7 +6,6 @@ import (
 	"errors"
 	"symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/chat_participant"
-	"symphony_chat/internal/domain/roles"
 	"time"
 
 	"github.com/google/uuid"
@@ -205,18 +204,14 @@ func (pr *PostgresChatParticipantRepo) DeleteChatParticipant(ctx context.Context
 	return nil
 }
 
-func (pr *PostgresChatParticipantRepo) DeleteAllChatParticipants(ctx context.Context, chatID uuid.UUID, ownerID uuid.UUID) error {
+func (pr *PostgresChatParticipantRepo) DeleteAllChatParticipants(ctx context.Context, chatID uuid.UUID) error {
 	tx := pr.GetTransaction(ctx)
 
 	_, err := tx.ExecContext(
 		ctx,
 		`DELETE FROM chat_participant
-		WHERE chat_id = $1
-		AND user_id != $2
-		AND role_id != $3`,
+		WHERE chat_id = $1`,
 		chatID,
-		ownerID,
-		roles.OwnerChatRole.GetID(),
 	)
 
 	if err != nil {

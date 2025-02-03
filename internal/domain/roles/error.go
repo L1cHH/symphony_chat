@@ -23,4 +23,9 @@ var (
 		Code: "CHAT_ROLE_NOT_FOUND",
 		Message: "chat role not found",
 	}
+
+	ErrInsufficientPermissions = &ChatRoleError {
+		Code: "INSUFFICIENT_PERMISSIONS",
+		Message: "user does not have required permissions for this action",
+	}
 )

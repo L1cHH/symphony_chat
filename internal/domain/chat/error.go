@@ -24,4 +24,6 @@ var (
 		Code: "CHAT_NOT_FOUND",
 		Message: "chat not found",
 	}
+
+	
 )

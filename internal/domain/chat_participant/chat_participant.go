@@ -57,5 +57,5 @@ type ChatParticipantRepository interface {
 	UpdateChatParticipantRole(ctx context.Context, chatID uuid.UUID, userID uuid.UUID, newRoleID uuid.UUID) error
 	
 	DeleteChatParticipant(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) error
-	DeleteAllChatParticipants(ctx context.Context, chatID uuid.UUID, ownerID uuid.UUID) error
+	DeleteAllChatParticipants(ctx context.Context, chatID uuid.UUID) error
 }
