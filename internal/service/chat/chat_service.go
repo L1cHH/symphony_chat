@@ -224,6 +224,64 @@ func (cs *ChatService) RemoveUserFromChat(ctx context.Context, chatID uuid.UUID,
 	return nil
 }
 
+func (cs *ChatService) PromoteUserToChatAdmin(ctx context.Context, chatID uuid.UUID, promoterUserID uuid.UUID, promotedUserID uuid.UUID) error {
+	isEnoughPermissions, err := cs.IsUserHasEnoughPermissions(ctx, chatID, promoterUserID, roles.PermissionManageRoles)
+	if err != nil {
+		return err
+	}
+
+	if !isEnoughPermissions {
+		return roles.ErrInsufficientPermissions
+	}
+
+	err = cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		if err := cs.chatParticipantRepo.UpdateChatParticipantRole(txCtx, chatID, promotedUserID, roles.AdminChatRole.GetID()); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cs *ChatService) DemoteChatAdminToChatMember(ctx context.Context, chatID uuid.UUID, demoterUserID uuid.UUID, adminUserID uuid.UUID) error {
+	isEnoughPermissions, err := cs.IsUserHasEnoughPermissions(ctx, chatID, demoterUserID, roles.PermissionManageRoles)
+	if err != nil {
+		return err
+	}
+
+	if !isEnoughPermissions {
+		return roles.ErrInsufficientPermissions
+	}
+
+	err = cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		if err := cs.chatParticipantRepo.UpdateChatParticipantRole(txCtx, chatID, adminUserID, roles.MemberChatRole.GetID()); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (cs *ChatService) LeaveChat(ctx context.Context, chatID uuid.UUID, leavingUserID uuid.UUID) error {
+	err := cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		return cs.chatParticipantRepo.DeleteChatParticipant(txCtx, chatID, leavingUserID)
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (cs *ChatService) CreateChatOwner(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) error {
 	chatOwner := chatparticipant.NewChatParticipant(chatID, userID, roles.OwnerChatRole.GetID(), time.Now())
