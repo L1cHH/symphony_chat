@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"slices"
 	"symphony_chat/internal/application/transaction"
 	"symphony_chat/internal/domain/chat"
 	"symphony_chat/internal/domain/chat_participant"
@@ -108,12 +109,12 @@ func (cs *ChatService) CreateChat(ctx context.Context, createrID uuid.UUID, chat
 
 func (cs *ChatService) DeleteChat(ctx context.Context, chatID uuid.UUID, deletingInitiatorID uuid.UUID) error {
 
-	isOwner, err := cs.IsOwner(ctx, chatID, deletingInitiatorID)
+	isEnoughPermissions, err := cs.IsUserHasEnoughPermissions(ctx, chatID, deletingInitiatorID, roles.PermissionDeleteChat)
 	if err != nil {
 		return err
 	}
 
-	if !isOwner {
+	if !isEnoughPermissions {
 		return roles.ErrInsufficientPermissions
 	}
 
@@ -144,6 +145,84 @@ func (cs *ChatService) DeleteChat(ctx context.Context, chatID uuid.UUID, deletin
 	return nil
 }
 
+func (cs *ChatService) RenameChat(ctx context.Context, chatID uuid.UUID, newName string, renamingInitiatorID uuid.UUID) (string, error) {
+
+	isEnoughPermissions, err := cs.IsUserHasEnoughPermissions(ctx, chatID, renamingInitiatorID, roles.PermissionUpdateChatName)
+	if err != nil {
+		return "", err
+	}
+
+	if !isEnoughPermissions {
+		return "", roles.ErrInsufficientPermissions
+	}
+
+	err = cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		if err := cs.chatRepo.UpdateChatName(txCtx, chatID, newName); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return newName, nil
+}
+
+func (cs *ChatService) AddUserToChat(ctx context.Context, chatID uuid.UUID, inviterUserID uuid.UUID, invitedUserID uuid.UUID) error {
+	isEnoughPermissions, err := cs.IsUserHasEnoughPermissions(ctx, chatID, inviterUserID, roles.PermissionAddMember)
+	if err != nil {
+		return err
+	}
+
+	if !isEnoughPermissions {
+		return roles.ErrInsufficientPermissions
+	}
+
+	err = cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		if err := cs.CreateChatMember(txCtx, chatID, invitedUserID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+
+
+	return nil 
+}
+
+func (cs *ChatService) RemoveUserFromChat(ctx context.Context, chatID uuid.UUID, removerUserID uuid.UUID, removedUserID uuid.UUID) error {
+	isEnoughPermissions, err := cs.IsUserHasEnoughPermissions(ctx, chatID, removerUserID, roles.PermissionRemoveMember)
+	if err != nil {
+		return err
+	}
+
+	if !isEnoughPermissions {
+		return roles.ErrInsufficientPermissions
+	}
+
+	err = cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		if err := cs.chatParticipantRepo.DeleteChatParticipant(txCtx, chatID, removedUserID); err != nil {
+			return err
+		}
+
+		//We are not deleting messages of the removed user from the chat
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 
 func (cs *ChatService) CreateChatOwner(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) error {
@@ -155,13 +234,37 @@ func (cs *ChatService) CreateChatOwner(ctx context.Context, chatID uuid.UUID, us
 	return nil
 }
 
-func (cs *ChatService) IsOwner(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) (bool, error) {
+func (cs *ChatService) CreateChatMember(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) error {
+	chatMember := chatparticipant.NewChatParticipant(chatID, userID, roles.MemberChatRole.GetID(), time.Now())
+	err := cs.chatParticipantRepo.AddChatParticipant(ctx, chatMember)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cs *ChatService) IsUserHasEnoughPermissions(ctx context.Context, chatID uuid.UUID, userID uuid.UUID, requiredPermissions ...roles.Permission) (bool, error) {
 	chatParticipant, err := cs.chatParticipantRepo.GetChatParticipantByIDs(ctx, chatID, userID)
 	if err != nil {
 		return false, err
 	}
-	return chatParticipant.GetRoleID() == roles.OwnerChatRole.GetID(), nil
+
+	chatRole, err := cs.chatRolesRepo.GetChatRoleByID(ctx, chatParticipant.GetRoleID())
+	if err != nil {
+		return false, err
+	}
+
+	userPermissions := chatRole.GetPermissions()
+
+	for _, requiredPermission := range requiredPermissions {
+		if !slices.Contains(userPermissions, requiredPermission) {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
+
 
 
 
