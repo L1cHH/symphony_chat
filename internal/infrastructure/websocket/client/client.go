@@ -1,11 +1,19 @@
 package client
 
 import (
-	"encoding/json"
-	websocketmessage "symphony_chat/internal/infrastructure/websocket/websocket_message"
+	"log"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+)
+
+const (
+	MaxMessageSize = 1024
+
+	pongWait = 60 * time.Second
+
+	pingPeriod = (pongWait * 9) / 10
 )
 
 type Client struct {
@@ -21,6 +29,10 @@ type Client struct {
 	userID uuid.UUID
 }
 
+func (c *Client) GetID() uuid.UUID {
+	return c.userID
+}
+
 func NewClient(conn *websocket.Conn, userID uuid.UUID) *Client {
 	if conn == nil {
 		return nil
@@ -34,16 +46,69 @@ func NewClient(conn *websocket.Conn, userID uuid.UUID) *Client {
 	}
 }
 
-func (c *Client) CloseBufferChannels() {
+func (c *Client) CloseConnection() {
 	close(c.sendBuffer)
 	close(c.receiveBuffer)
+	c.conn.Close()
 }
 
-func (c *Client) HandleMessage(message []byte) error {
-	var msg websocketmessage.WsMessage
-	if err := json.Unmarshal(message, &msg); err != nil {
-		return err
+//By client message handling means that the message was sent by the current user(current connection)
+func (c *Client) HandleMessageFromClient(message []byte) {
+	//TODO: handle client message
+}
+
+//By server message handling means that the message was sent by other clients(other users)
+func (c *Client) HandleMessageFromServer(message []byte) {
+	//TODO: handle server message
+}
+
+func (c *Client) WritePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.CloseConnection()
+	}()
+	
+	for {
+		select {
+		case message := <-c.sendBuffer:
+			c.HandleMessageFromServer(message)
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(pongWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
 	}
 
-	return nil
 }
+
+func (c *Client) ReadPump() {
+	defer func() {
+		c.CloseConnection()
+	}()
+
+	c.conn.SetReadLimit(MaxMessageSize)
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error {
+		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	for {
+		_, message, err := c.conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(
+				err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+			) {log.Printf("error: %v", err)}
+
+			break
+		}
+
+		c.HandleMessageFromClient(message)
+	}
+
+}
+

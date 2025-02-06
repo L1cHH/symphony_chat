@@ -8,17 +8,17 @@ import (
 	"github.com/gorilla/websocket"
 
 	"symphony_chat/internal/infrastructure/websocket/client"
-	"symphony_chat/internal/infrastructure/websocket/server"
+	"symphony_chat/internal/infrastructure/websocket/chathub"
 )
 
 type WebsocketHandler struct {
-	hub  *server.Hub
+	hub *chathub.Hub
 	upgrader websocket.Upgrader
 }
 
-func NewWebsocketHandler(hub *server.Hub) *WebsocketHandler {
+func NewWebsocketHandler() *WebsocketHandler {
 	return &WebsocketHandler {
-		hub: hub,
+		hub: chathub.NewHub(),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true
@@ -52,7 +52,7 @@ func (wh *WebsocketHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	_, ok := userIdValue.(uuid.UUID)
+	userID, ok := userIdValue.(uuid.UUID)
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"code": "INTERNAL_SERVER_ERROR",
@@ -63,6 +63,11 @@ func (wh *WebsocketHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// client := client.NewClient(conn, userID)
+	client := client.NewClient(conn, userID)
 
+	wh.hub.AddActiveClient(client)
+
+	go client.ReadPump()
+	go client.WritePump()
 }
+
