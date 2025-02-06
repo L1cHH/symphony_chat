@@ -1,7 +1,9 @@
 package client
 
 import (
+	"encoding/json"
 	"log"
+	websocketmessage "symphony_chat/internal/infrastructure/websocket/websocket_message"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,40 +11,54 @@ import (
 )
 
 const (
+	//Max size of the connection's incoming messages
 	MaxMessageSize = 1024
 
 	pongWait = 60 * time.Second
 
 	pingPeriod = (pongWait * 9) / 10
+
+	//Size of the buffers for sending and receiving messages
+	sendBufferSize = 256
+	receiveBufferSize = 256
 )
+
+type MessageReceiver interface {
+	HandleMessage(message []byte)
+}
 
 type Client struct {
 	// conn is the websocket connection
 	conn *websocket.Conn
 
-	// sendBuffer is a channel for sending messages
+	// sendBuffer is a channel for receiving messages from Hub
 	sendBuffer chan []byte
 
-	// receiveBuffer is a channel for receiving messages
+	// receiveBuffer is a channel for receiving messages from current connection
 	receiveBuffer chan []byte
 
+	// userID defines a user of the current connection
 	userID uuid.UUID
+
+	// msgReceiver is a receiver for messages from current Client
+	msgReceiver MessageReceiver
 }
 
 func (c *Client) GetID() uuid.UUID {
 	return c.userID
 }
 
-func NewClient(conn *websocket.Conn, userID uuid.UUID) *Client {
+func NewClient(conn *websocket.Conn, userID uuid.UUID, msgReceiver MessageReceiver) *Client {
 	if conn == nil {
 		return nil
 	}
 
 	return &Client{
 		conn: conn,
-		sendBuffer: make(chan []byte),
-		receiveBuffer: make(chan []byte),
+		sendBuffer: make(chan []byte, sendBufferSize),
+		receiveBuffer: make(chan []byte, receiveBufferSize),
 		userID: userID,
+		msgReceiver: msgReceiver,
 	}
 }
 
@@ -52,14 +68,21 @@ func (c *Client) CloseConnection() {
 	c.conn.Close()
 }
 
-//By client message handling means that the message was sent by the current user(current connection)
-func (c *Client) HandleMessageFromClient(message []byte) {
-	//TODO: handle client message
+//Read messages from the connection and send them to the message receiver
+func (c *Client) ProcessAndSendMessages() {
+	for message := range c.receiveBuffer {
+		c.msgReceiver.HandleMessage(message)
+	}
 }
 
-//By server message handling means that the message was sent by other clients(other users)
+//Handle messages from other clients
 func (c *Client) HandleMessageFromServer(message []byte) {
-	//TODO: handle server message
+	var msg websocketmessage.WsMessage
+	if err := json.Unmarshal(message, &msg); err != nil {
+		log.Printf("error unmarshalling message: %v", err)
+		return
+	}
+	//TODO: handle message
 }
 
 func (c *Client) WritePump() {
@@ -72,7 +95,7 @@ func (c *Client) WritePump() {
 	for {
 		select {
 		case message := <-c.sendBuffer:
-			c.HandleMessageFromServer(message)
+			go c.HandleMessageFromServer(message)
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(pongWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -95,6 +118,8 @@ func (c *Client) ReadPump() {
 		return nil
 	})
 
+	go c.ProcessAndSendMessages()
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -106,8 +131,7 @@ func (c *Client) ReadPump() {
 
 			break
 		}
-
-		c.HandleMessageFromClient(message)
+		c.receiveBuffer <- message
 	}
 
 }

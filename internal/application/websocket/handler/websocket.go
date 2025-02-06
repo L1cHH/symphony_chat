@@ -63,7 +63,7 @@ func (wh *WebsocketHandler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	client := client.NewClient(conn, userID)
+	client := client.NewClient(conn, userID, wh.hub)
 
 	wh.hub.AddActiveClient(client)
 
