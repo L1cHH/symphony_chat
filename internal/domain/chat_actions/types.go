@@ -6,7 +6,6 @@ const (
 	//Clients actions
 
 	//Chat actions
-	JoinChatAction ChatActionType = "JOIN_CHAT"
 	LeaveChatAction ChatActionType = "LEAVE_CHAT"
 	CreateChatAction ChatActionType = "CREATE_CHAT"
 	RenameChatAction ChatActionType = "RENAME_CHAT"
@@ -18,4 +17,11 @@ const (
 	PromoteUserToChatAdminAction ChatActionType = "PROMOTE_USER_TO_CHAT_ADMIN"
 	DemoteChatAdminToChatMemberAction ChatActionType = "DEMOTE_CHAT_ADMIN_TO_CHAT_MEMBER"
 
+)
+
+type ChatActionResult string
+
+const (
+	Success ChatActionResult = "SUCCESS"
+	Failed ChatActionResult = "FAILED"
 )

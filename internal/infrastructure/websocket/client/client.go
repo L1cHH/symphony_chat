@@ -1,9 +1,7 @@
 package client
 
 import (
-	"encoding/json"
 	"log"
-	websocketmessage "symphony_chat/internal/infrastructure/websocket/websocket_message"
 	"time"
 
 	"github.com/google/uuid"
@@ -62,27 +60,24 @@ func NewClient(conn *websocket.Conn, userID uuid.UUID, msgReceiver MessageReceiv
 	}
 }
 
+func (c *Client) IsStillConnected() bool {
+	if c.conn == nil {
+		return false
+	} else {
+		return true
+	}
+}
+
 func (c *Client) CloseConnection() {
 	close(c.sendBuffer)
 	close(c.receiveBuffer)
 	c.conn.Close()
 }
 
-//Read messages from the connection and send them to the message receiver
-func (c *Client) ProcessAndSendMessages() {
-	for message := range c.receiveBuffer {
-		c.msgReceiver.HandleMessage(message)
-	}
-}
 
-//Handle messages from other clients
-func (c *Client) HandleMessageFromServer(message []byte) {
-	var msg websocketmessage.WsMessage
-	if err := json.Unmarshal(message, &msg); err != nil {
-		log.Printf("error unmarshalling message: %v", err)
-		return
-	}
-	//TODO: handle message
+
+func (c *Client) GetMessageFromServer(message []byte) {
+	c.sendBuffer <- message
 }
 
 func (c *Client) WritePump() {
@@ -95,7 +90,7 @@ func (c *Client) WritePump() {
 	for {
 		select {
 		case message := <-c.sendBuffer:
-			go c.HandleMessageFromServer(message)
+			c.conn.WriteMessage(websocket.TextMessage, message)
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(pongWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -134,5 +129,12 @@ func (c *Client) ReadPump() {
 		c.receiveBuffer <- message
 	}
 
+}
+
+//Read messages from the connection and send them to the message receiver
+func (c *Client) ProcessAndSendMessages() {
+	for message := range c.receiveBuffer {
+		c.msgReceiver.HandleMessage(message)
+	}
 }
 

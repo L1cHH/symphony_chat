@@ -7,8 +7,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
-	"symphony_chat/internal/infrastructure/websocket/client"
 	"symphony_chat/internal/infrastructure/websocket/chathub"
+	"symphony_chat/internal/infrastructure/websocket/client"
+	service "symphony_chat/internal/service/chat"
 )
 
 type WebsocketHandler struct {
@@ -16,9 +17,9 @@ type WebsocketHandler struct {
 	upgrader websocket.Upgrader
 }
 
-func NewWebsocketHandler() *WebsocketHandler {
+func NewWebsocketHandler(chatService *service.ChatService) *WebsocketHandler {
 	return &WebsocketHandler {
-		hub: chathub.NewHub(),
+		hub: chathub.NewHub(chatService),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true
