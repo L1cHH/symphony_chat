@@ -9,6 +9,7 @@ import (
 	websocketmessage "symphony_chat/internal/infrastructure/websocket/websocket_message"
 	"symphony_chat/internal/service/chat"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -57,6 +58,42 @@ func (h *Hub) GetActiveClient(userID uuid.UUID) *client.Client {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.activeClients[userID]
+}
+
+func (h *Hub) RemoveActiveClientFromChat(userID uuid.UUID, chatID uuid.UUID) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	delete(h.activeChats[chatID], userID)
+
+	//if no more clients in chat, remove chat from active chats
+	if len(h.activeChats[chatID]) == 0 {
+		delete(h.activeChats, chatID)
+	} else {
+		activeClients := make([]*client.Client, 0, len(h.activeChats[chatID]))
+
+		for _, client := range h.activeChats[chatID] {
+			activeClients = append(activeClients, client)
+		}
+
+		go func(activeClients []*client.Client) {
+			//sending event to all clients in chat
+			wsEvent := websocketmessage.WsClientEvent {
+				EventType: actions.UserLeftChatEvent,
+				Payload: map[string]interface{}{
+					"user_id": userID,
+					"chat_id": chatID,
+					"left_at": time.Now(),
+				},
+			}
+
+			wsEventBytes, _ := json.Marshal(wsEvent)
+
+			for _, client := range activeClients {
+				client.GetMessageFromServer(wsEventBytes)
+			}
+		}(activeClients)
+	}
 }
 
 //This method needs to be used when active client disconnects
@@ -170,6 +207,31 @@ func (h *Hub) HandleMessage(message []byte) {
 				Payload: map[string]interface{} {
 					"chat_id": chatID,
 					"new_chat_name": newName,
+				},
+			}
+			wsResBytes, _ := json.Marshal(wsRes)
+
+			activeClient.GetMessageFromServer(wsResBytes)
+		}
+	case actions.LeaveChatAction:
+		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
+		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
+		activeClient := h.GetActiveClient(userID)
+
+		err := h.chatService.LeaveChat(context.Background(), chatID, userID)
+		if err != nil {
+			if activeClient.IsStillConnected() {
+				activeClient.GetMessageFromServer([]byte(err.Error()))
+			}
+			return
+		}
+
+		h.RemoveActiveClientFromChat(userID, chatID)
+		if activeClient.IsStillConnected() {
+			wsRes := websocketmessage.WsMessageResponse {
+				ChatActionResult: actions.Success,
+				Payload: map[string]interface{} {
+					"chat_id": chatID,
 				},
 			}
 			wsResBytes, _ := json.Marshal(wsRes)

@@ -25,3 +25,14 @@ const (
 	Success ChatActionResult = "SUCCESS"
 	Failed ChatActionResult = "FAILED"
 )
+
+type EventType string 
+
+const (
+	UserEnteredChatEvent EventType = "USER_ENTERED_CHAT"
+	UserLeftChatEvent EventType = "USER_LEFT_CHAT"
+	ChatNameUpdatedEvent EventType = "CHAT_NAME_UPDATED"
+	UserSentMessageEvent EventType = "USER_SENT_MESSAGE"
+	UserEditedMessageEvent EventType = "USER_EDITED_MESSAGE"
+	UserDeletedMessageEvent EventType = "USER_DELETED_MESSAGE"
+)
