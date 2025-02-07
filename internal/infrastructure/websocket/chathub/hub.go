@@ -60,6 +60,34 @@ func (h *Hub) GetActiveClient(userID uuid.UUID) *client.Client {
 	return h.activeClients[userID]
 }
 
+func (h *Hub) GetActiveClientsOfChat(chatID uuid.UUID) []*client.Client {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	chatClients := make([]*client.Client, 0, len(h.activeChats[chatID]))
+	for _, client := range h.activeChats[chatID] {
+		chatClients = append(chatClients, client)
+	}
+	return chatClients
+}
+
+//This is the general method for sending events to clients of the 
+func (h *Hub) SendWsEventToChatClients(chatID uuid.UUID, clients []*client.Client, wsEvent websocketmessage.WsClientEvent) {
+	wsEventBytes, _ := json.Marshal(wsEvent)
+
+	for _, client := range clients {
+		if client.IsStillConnected() {
+			client.GetMessageFromServer(wsEventBytes)
+		}
+	}
+}
+
+//This is the general method for sending response to the client's request
+func (h *Hub) SendWsResponseToClient(client *client.Client, wsResponse websocketmessage.WsMessageResponse) {
+	wsResponseBytes, _ := json.Marshal(wsResponse)
+	client.GetMessageFromServer(wsResponseBytes)
+}
+
+//This method needs to be used when active client leaves chat
 func (h *Hub) RemoveActiveClientFromChat(userID uuid.UUID, chatID uuid.UUID) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -76,23 +104,17 @@ func (h *Hub) RemoveActiveClientFromChat(userID uuid.UUID, chatID uuid.UUID) {
 			activeClients = append(activeClients, client)
 		}
 
-		go func(activeClients []*client.Client) {
-			//sending event to all clients in chat
-			wsEvent := websocketmessage.WsClientEvent {
-				EventType: actions.UserLeftChatEvent,
-				Payload: map[string]interface{}{
-					"user_id": userID,
-					"chat_id": chatID,
-					"left_at": time.Now(),
-				},
-			}
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.UserLeftChatEvent,
+			Payload: map[string]interface{}{
+				"user_id": userID,
+				"chat_id": chatID,
+				"left_at": time.Now(),
+			},
+		}
 
-			wsEventBytes, _ := json.Marshal(wsEvent)
-
-			for _, client := range activeClients {
-				client.GetMessageFromServer(wsEventBytes)
-			}
-		}(activeClients)
+		//sending event to all clients in chat
+		go h.SendWsEventToChatClients(chatID, activeClients, wsEvent) 
 	}
 }
 
@@ -115,7 +137,6 @@ func (h *Hub) AddCreatedChat(chatID uuid.UUID, chatOwner *client.Client) {
 	defer h.mu.Unlock()
 	h.activeChats[chatID][chatOwner.GetID()] = chatOwner
 }
-
 
 //This method needs to be used when active user deletes chat
 func (h *Hub) RemoveActiveChat(chatID uuid.UUID) {
@@ -192,7 +213,7 @@ func (h *Hub) HandleMessage(message []byte) {
 		newChatName, _ := msg.Payload["new_chat_name"].(string)
 		activeClient := h.GetActiveClient(userID)
 
-		newName, err :=h.chatService.RenameChat(context.Background(), chatID, newChatName, userID)
+		newName, err := h.chatService.RenameChat(context.Background(), chatID, newChatName, userID)
 
 		if err != nil {
 			if activeClient.IsStillConnected(){
@@ -209,10 +230,20 @@ func (h *Hub) HandleMessage(message []byte) {
 					"new_chat_name": newName,
 				},
 			}
-			wsResBytes, _ := json.Marshal(wsRes)
 
-			activeClient.GetMessageFromServer(wsResBytes)
+			go h.SendWsResponseToClient(activeClient, wsRes)
+		
 		}
+
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.ChatNameUpdatedEvent,
+			Payload: map[string]interface{} {
+				"chat_id": chatID,
+				"user_id": userID,
+				"new_chat_name": newName,
+			},
+		}
+		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
 	case actions.LeaveChatAction:
 		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
 		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
@@ -234,9 +265,7 @@ func (h *Hub) HandleMessage(message []byte) {
 					"chat_id": chatID,
 				},
 			}
-			wsResBytes, _ := json.Marshal(wsRes)
-
-			activeClient.GetMessageFromServer(wsResBytes)
+			go h.SendWsResponseToClient(activeClient, wsRes)
 		}
 	}
 }
