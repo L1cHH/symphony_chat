@@ -2,6 +2,7 @@ package client
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,6 +30,9 @@ type MessageReceiver interface {
 type Client struct {
 	// conn is the websocket connection
 	conn *websocket.Conn
+
+	// closeOnce ensures that CloseConnection is called at most once
+	closeOnce sync.Once
 
 	// sendBuffer is a channel for receiving messages from Hub
 	sendBuffer chan []byte
@@ -70,15 +74,13 @@ func (c *Client) IsStillConnected() bool {
 }
 
 func (c *Client) CloseConnection() {
-	if c.IsStillConnected() {
+	c.closeOnce.Do(func() {
 		close(c.sendBuffer)
 		close(c.receiveBuffer)
 		c.conn.Close()
 		c.msgReceiver.RemoveActiveClient(c)
-	}
-}
-
-
+	})
+} 
 
 func (c *Client) GetMessageFromServer(message []byte) {
 	c.sendBuffer <- message
@@ -93,8 +95,14 @@ func (c *Client) WritePump() {
 	
 	for {
 		select {
-		case message := <-c.sendBuffer:
-			c.conn.WriteMessage(websocket.TextMessage, message)
+		case message, ok := <-c.sendBuffer:
+			if !ok {
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+			}
+			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
+				return
+			}
+			
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(pongWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
