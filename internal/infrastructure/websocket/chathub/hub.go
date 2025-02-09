@@ -119,13 +119,19 @@ func (h *Hub) RemoveActiveClientFromChat(userID uuid.UUID, chatID uuid.UUID) {
 }
 
 //This method needs to be used when active client disconnects
-func (h *Hub) RemoveActiveClient(client *client.Client, chatIDs ...uuid.UUID) {
+func (h *Hub) RemoveActiveClient(client *client.Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	chatIDs, err := h.chatService.GetChatsOfUser(context.Background(), client.GetID())
+	if err != nil {
+		//TODO: handle error
+	}
+
 	for _, chatID := range chatIDs {
-		delete(h.activeChats[chatID], client.GetID())
-		if len(h.activeChats[chatID]) == 0 {
-			delete(h.activeChats, chatID)
+		delete(h.activeChats[chatID.GetID()], client.GetID())
+		if len(h.activeChats[chatID.GetID()]) == 0 {
+			delete(h.activeChats, chatID.GetID())
 		}
 	}
 	delete(h.activeClients, client.GetID())

@@ -51,6 +51,7 @@ func ChatParticipantFromDB(chatID uuid.UUID, userID uuid.UUID, roleID uuid.UUID,
 type ChatParticipantRepository interface {
 	GetChatParticipantByIDs(ctx context.Context, chatID uuid.UUID, userID uuid.UUID) (ChatParticipant, error)
 	GetAllChatParticipantsByChatID(ctx context.Context, chatID uuid.UUID) ([]ChatParticipant, error)
+	GetAllChatsByUserID(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 
 	AddChatParticipant(ctx context.Context, chatParticipant ChatParticipant) error
 

@@ -107,6 +107,28 @@ func (cs *ChatService) CreateChat(ctx context.Context, createrID uuid.UUID, chat
 	return createdChat, nil
 }
 
+func (cs *ChatService) GetChatsOfUser(ctx context.Context, userID uuid.UUID) ([]chat.Chat, error) {
+	
+	var chats []chat.Chat
+	
+	err := cs.transactionManager.WithinTransaction(ctx, func(txCtx context.Context) error {
+		chatsIDs, err := cs.chatParticipantRepo.GetAllChatsByUserID(txCtx, userID)
+		if err != nil {
+			return err
+		}
+
+		chats, err = cs.chatRepo.GetChatsByIDs(txCtx, chatsIDs)
+
+		return nil
+	})
+
+	if err != nil {
+		return []chat.Chat{}, err
+	}
+
+	return chats, nil
+}
+
 func (cs *ChatService) DeleteChat(ctx context.Context, chatID uuid.UUID, deletingInitiatorID uuid.UUID) error {
 
 	isEnoughPermissions, err := cs.IsUserHasEnoughPermissions(ctx, chatID, deletingInitiatorID, roles.PermissionDeleteChat)

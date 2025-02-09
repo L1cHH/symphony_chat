@@ -18,4 +18,9 @@ var (
 		Code: "CHAT_PARTICIPANT_NOT_FOUND",
 		Message: "chat participant not found",
 	}
+
+	ErrChatParticipantChatsByUserNotFound = &ChatParticipantError{
+		Code: "CHATS_BY_USER_NOT_FOUND",
+		Message: "chats by user not found",
+	}
 )

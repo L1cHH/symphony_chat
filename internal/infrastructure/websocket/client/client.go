@@ -23,6 +23,7 @@ const (
 
 type MessageReceiver interface {
 	HandleMessage(message []byte)
+	RemoveActiveClient(client *Client)
 }
 
 type Client struct {
@@ -69,9 +70,12 @@ func (c *Client) IsStillConnected() bool {
 }
 
 func (c *Client) CloseConnection() {
-	close(c.sendBuffer)
-	close(c.receiveBuffer)
-	c.conn.Close()
+	if c.IsStillConnected() {
+		close(c.sendBuffer)
+		close(c.receiveBuffer)
+		c.conn.Close()
+		c.msgReceiver.RemoveActiveClient(c)
+	}
 }
 
 
@@ -128,7 +132,6 @@ func (c *Client) ReadPump() {
 		}
 		c.receiveBuffer <- message
 	}
-
 }
 
 //Read messages from the connection and send them to the message receiver

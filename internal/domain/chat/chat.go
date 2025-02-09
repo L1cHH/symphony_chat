@@ -59,6 +59,7 @@ func ChatFromDB(id uuid.UUID, name string, createdAt time.Time, updatedAt time.T
 
 type ChatRepository interface {
 	GetChatByID(context.Context, uuid.UUID) (Chat, error)
+	GetChatsByIDs(context.Context, []uuid.UUID) ([]Chat, error)
 	AddChat(context.Context, Chat) error
 	UpdateChatName(context.Context, uuid.UUID, string) error
 	UpdateChatUpdatedAt(ctx context.Context, chatID uuid.UUID, updatedAt time.Time) error

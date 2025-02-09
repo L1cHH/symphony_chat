@@ -92,6 +92,48 @@ func (pr *PostgresChatParticipantRepo) GetAllChatParticipantsByChatID(ctx contex
 	return foundChatParticipants, nil
 }
 
+func (pr *PostgresChatParticipantRepo) GetAllChatsByUserID(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	tx := pr.GetTransaction(ctx)
+
+	rows, err := tx.QueryContext(
+		ctx,
+		`SELECT chat_id
+		FROM chat_participant
+		WHERE user_id = $1`,
+		userID,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []uuid.UUID{}, chatparticipant.ErrChatParticipantChatsByUserNotFound
+		}
+		return []uuid.UUID{}, &chatparticipant.ChatParticipantError{
+			Code: "DATABASE_ERROR",
+			Message: "failed to get all chats ids by user id",
+			Err: err,
+		}
+	}
+
+	defer rows.Close()
+
+	foundChatIDs := make([]uuid.UUID, 0)
+
+	for rows.Next() {
+		var chatID uuid.UUID
+
+		if err := rows.Scan(&chatID); err != nil {
+			return nil, &chatparticipant.ChatParticipantError{
+				Code:    "DATABASE_ERROR",
+				Message: "failed to scan chat chatIDs",
+				Err:     err,
+			}
+		}
+		foundChatIDs = append(foundChatIDs, chatID)
+	}
+
+	return foundChatIDs, nil
+}
+
 func (pr *PostgresChatParticipantRepo) AddChatParticipant(ctx context.Context, chatParticipant chatparticipant.ChatParticipant) error {
 	tx := pr.GetTransaction(ctx)
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 type PostgresChatRepo struct {
@@ -48,6 +49,50 @@ func (pr *PostgresChatRepo) GetChatByID(ctx context.Context, chat_id uuid.UUID) 
 	}
 
 	return chat.ChatFromDB(id, name, createdAt, updatedAt), nil
+}
+
+func (pr *PostgresChatRepo) GetChatsByIDs(ctx context.Context, chatIDs []uuid.UUID) ([]chat.Chat, error) {
+	tx := pr.GetTransaction(ctx)
+
+	rows, err := tx.QueryContext(
+		ctx,
+		`SELECT id, name, created_at, updated_at
+		FROM chat
+		WHERE id = ANY($1)`,
+		pq.Array(chatIDs),
+	)
+
+	if err != nil {
+
+		return []chat.Chat{}, &chat.ChatError{
+			Code:    "DATABASE_ERROR",
+			Message: "failed to get chats",
+			Err:     err,
+		}
+	}
+
+	defer rows.Close()
+
+	chats := make([]chat.Chat, 0, len(chatIDs))
+
+	for rows.Next() {
+		var chatID uuid.UUID
+		var name string
+		var createdAt time.Time
+		var updatedAt time.Time
+
+		if err := rows.Scan(&chatID, &name, &createdAt, &updatedAt); err != nil {
+			return []chat.Chat{}, &chat.ChatError{
+				Code: "DATABASE_ERROR",
+				Message: "failed to get chats",
+				Err:     err,
+			}
+		}
+
+		chats = append(chats, chat.ChatFromDB(chatID, name, createdAt, updatedAt))
+	}
+
+	return chats, nil
 }
 
 func (pr *PostgresChatRepo) AddChat(ctx context.Context, chatDB chat.Chat) error {
