@@ -87,8 +87,16 @@ func (h *Hub) SendWsResponseToClient(client *client.Client, wsResponse websocket
 	client.GetMessageFromServer(wsResponseBytes)
 }
 
+func (h *Hub) AddActiveClientToChat(chatID uuid.UUID, invitedUserID uuid.UUID) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	activeClient := h.GetActiveClient(invitedUserID)
+
+	h.activeChats[chatID][invitedUserID] = activeClient
+}
+
 //This method needs to be used when active client leaves chat
-func (h *Hub) RemoveActiveClientFromChat(userID uuid.UUID, chatID uuid.UUID) {
+func (h *Hub) ActiveClientLeftChat(userID uuid.UUID, chatID uuid.UUID) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -97,25 +105,14 @@ func (h *Hub) RemoveActiveClientFromChat(userID uuid.UUID, chatID uuid.UUID) {
 	//if no more clients in chat, remove chat from active chats
 	if len(h.activeChats[chatID]) == 0 {
 		delete(h.activeChats, chatID)
-	} else {
-		activeClients := make([]*client.Client, 0, len(h.activeChats[chatID]))
+	} 
+}
 
-		for _, client := range h.activeChats[chatID] {
-			activeClients = append(activeClients, client)
-		}
+func (h *Hub) ActiveClientWasKickedFromChat(chatID uuid.UUID, kickerUserID uuid.UUID,kickedUserID uuid.UUID) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
-		wsEvent := websocketmessage.WsClientEvent {
-			EventType: actions.UserLeftChatEvent,
-			Payload: map[string]interface{}{
-				"user_id": userID,
-				"chat_id": chatID,
-				"left_at": time.Now(),
-			},
-		}
-
-		//sending event to all clients in chat
-		go h.SendWsEventToChatClients(chatID, activeClients, wsEvent) 
-	}
+	delete(h.activeChats[chatID], kickedUserID)
 }
 
 //This method needs to be used when active client disconnects
@@ -251,6 +248,7 @@ func (h *Hub) HandleMessage(message []byte) {
 		}
 		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
 	case actions.LeaveChatAction:
+
 		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
 		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
 		activeClient := h.GetActiveClient(userID)
@@ -263,7 +261,7 @@ func (h *Hub) HandleMessage(message []byte) {
 			return
 		}
 
-		h.RemoveActiveClientFromChat(userID, chatID)
+		h.ActiveClientLeftChat(userID, chatID)
 		if activeClient.IsStillConnected() {
 			wsRes := websocketmessage.WsMessageResponse {
 				ChatActionResult: actions.Success,
@@ -273,6 +271,134 @@ func (h *Hub) HandleMessage(message []byte) {
 			}
 			go h.SendWsResponseToClient(activeClient, wsRes)
 		}
+
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.UserLeftChatEvent,
+			Payload: map[string]interface{}{
+				"user_id": userID,
+				"chat_id": chatID,
+				"left_at": time.Now(),
+			},
+		}
+		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
+	case actions.AddMemberToChatAction:
+		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
+		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
+		invitedUserID, _ := uuid.Parse(msg.Payload["invited_user_id"].(string))
+
+		activeClient := h.GetActiveClient(userID)
+
+		err := h.chatService.AddUserToChat(context.Background(), chatID, userID, invitedUserID)
+		if err != nil {
+			if activeClient.IsStillConnected() {
+				activeClient.GetMessageFromServer([]byte(err.Error()))
+			}
+			return
+		}
+
+		h.AddActiveClientToChat(chatID, invitedUserID)
+
+		if activeClient.IsStillConnected() {
+			wsRes := websocketmessage.WsMessageResponse {
+				ChatActionResult: actions.Success,
+				Payload: map[string]interface{} {
+					"chat_id": chatID,
+					"inviter_user_id": userID,
+					"invited_user_id": invitedUserID,
+				},
+			}
+
+			go h.SendWsResponseToClient(activeClient, wsRes)
+		}
+
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.UserSentMessageEvent,
+			Payload: map[string]interface{} {
+				"chat_id": chatID,
+				"inviter_user_id": userID,
+				"invited_user_id": invitedUserID,
+			},
+		}
+
+		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
+	case actions.RemoveMemberFromChatAction:
+		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
+		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
+		removingUserID, _ := uuid.Parse(msg.Payload["removing_user_id"].(string))
+
+		activeClient := h.GetActiveClient(userID)
+
+		err := h.chatService.RemoveUserFromChat(context.Background(), chatID, userID, removingUserID)
+		if err != nil {
+			if activeClient.IsStillConnected() {
+				activeClient.GetMessageFromServer([]byte(err.Error()))
+			}
+			return
+		}
+
+		h.ActiveClientWasKickedFromChat(chatID, userID, removingUserID)
+
+		if activeClient.IsStillConnected() {
+			wsRes := websocketmessage.WsMessageResponse {
+				ChatActionResult: actions.Success,
+				Payload: map[string]interface{} {
+					"chat_id": chatID,
+					"kicker_user_id": userID,
+					"kicked_user_id": removingUserID,
+				},
+			}
+
+			go h.SendWsResponseToClient(activeClient, wsRes)
+		}
+
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.UserWasKickedFromChatEvent,
+			Payload: map[string]interface{} {
+				"chat_id": chatID,
+				"kicker_user_id": userID,
+				"kicked_user_id": removingUserID,
+			},
+		}
+	
+		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
+	case actions.PromoteUserToChatAdminAction:
+		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
+		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
+		promotedUserID, _ := uuid.Parse(msg.Payload["promoted_user_id"].(string))
+
+		activeClient := h.GetActiveClient(userID)
+
+		err := h.chatService.PromoteUserToChatAdmin(context.Background(), chatID, userID, promotedUserID)
+		if err != nil {
+			if activeClient.IsStillConnected() {
+				activeClient.GetMessageFromServer([]byte(err.Error()))
+			}
+			return
+		}
+
+		if activeClient.IsStillConnected() {
+			wsRes := websocketmessage.WsMessageResponse {
+				ChatActionResult: actions.Success,
+				Payload: map[string]interface{} {
+					"chat_id": chatID,
+					"promoter_user_id": userID,
+					"promoted_user_id": promotedUserID,
+				},
+			}
+
+			go h.SendWsResponseToClient(activeClient, wsRes)
+		}
+
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.UserWasPromotedToChatAdminEvent,
+			Payload: map[string]interface{} {
+				"chat_id": chatID,
+				"promoter_user_id": userID,
+				"promoted_user_id": promotedUserID,
+			},
+		}
+	
+		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
 	}
 }
 

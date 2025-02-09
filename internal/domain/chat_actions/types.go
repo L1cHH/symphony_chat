@@ -35,4 +35,7 @@ const (
 	UserSentMessageEvent EventType = "USER_SENT_MESSAGE"
 	UserEditedMessageEvent EventType = "USER_EDITED_MESSAGE"
 	UserDeletedMessageEvent EventType = "USER_DELETED_MESSAGE"
+	UserWasKickedFromChatEvent EventType = "USER_WAS_KICKED_FROM_CHAT"
+	UserWasPromotedToChatAdminEvent EventType = "USER_WAS_PROMOTED_TO_CHAT_ADMIN"
+	UserWasDemotedFromChatAdminEvent EventType = "USER_WAS_DEMOTED_FROM_CHAT_ADMIN"
 )
