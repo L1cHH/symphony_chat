@@ -17,6 +17,11 @@ const (
 	PromoteUserToChatAdminAction ChatActionType = "PROMOTE_USER_TO_CHAT_ADMIN"
 	DemoteChatAdminToChatMemberAction ChatActionType = "DEMOTE_CHAT_ADMIN_TO_CHAT_MEMBER"
 
+	//Messages actions
+	SendMessageAction ChatActionType = "SEND_MESSAGE"
+	DeleteMessageAction ChatActionType = "DELETE_MESSAGE"
+	EditMessageAction ChatActionType = "EDIT_MESSAGE"
+
 )
 
 type ChatActionResult string

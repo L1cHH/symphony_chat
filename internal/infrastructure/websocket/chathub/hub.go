@@ -312,7 +312,7 @@ func (h *Hub) HandleMessage(message []byte) {
 		}
 
 		wsEvent := websocketmessage.WsClientEvent {
-			EventType: actions.UserSentMessageEvent,
+			EventType: actions.UserEnteredChatEvent,
 			Payload: map[string]interface{} {
 				"chat_id": chatID,
 				"inviter_user_id": userID,
@@ -398,6 +398,82 @@ func (h *Hub) HandleMessage(message []byte) {
 			},
 		}
 	
+		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
+	case actions.DemoteChatAdminToChatMemberAction:
+		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
+		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
+		demotedUserID, _ := uuid.Parse(msg.Payload["demoted_user_id"].(string))
+
+		activeClient := h.GetActiveClient(userID)
+
+		err := h.chatService.DemoteChatAdminToChatMember(context.Background(), chatID, userID, demotedUserID)
+		if err != nil {
+			if activeClient.IsStillConnected() {
+				activeClient.GetMessageFromServer([]byte(err.Error()))
+			}
+			return
+		}
+
+		if activeClient.IsStillConnected() {
+			wsRes := websocketmessage.WsMessageResponse {
+				ChatActionResult: actions.Success,
+				Payload: map[string]interface{} {
+					"chat_id": chatID,
+					"demoter_user_id": userID,
+					"demoted_user_id": demotedUserID,
+				},
+			}
+
+			go h.SendWsResponseToClient(activeClient, wsRes)
+		}
+
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.UserWasDemotedFromChatAdminEvent,
+			Payload: map[string]interface{} {
+				"chat_id": chatID,
+				"demoter_user_id": userID,
+				"demoted_user_id": demotedUserID,
+			},
+		}
+
+		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
+	case actions.SendMessageAction:
+		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
+		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
+		message := msg.Payload["message"].(string)
+
+		activeClient := h.GetActiveClient(userID)
+
+		id, err := h.chatService.SendMessage(context.Background(), chatID, userID, message)
+		if err != nil {
+			if activeClient.IsStillConnected() {
+				activeClient.GetMessageFromServer([]byte(err.Error()))
+			}
+			return
+		}
+
+		if activeClient.IsStillConnected() {
+			wsRes := websocketmessage.WsMessageResponse {
+				ChatActionResult: actions.Success,
+				Payload: map[string]interface{} {
+					"chat_id": chatID,
+					"sender_user_id": userID,
+					"message_id": id,
+				},
+			}
+
+			go h.SendWsResponseToClient(activeClient, wsRes)
+		}
+
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.UserSentMessageEvent,
+			Payload: map[string]interface{} {
+				"chat_id": chatID,
+				"sender_user_id": userID,
+				"message_id": id,
+			},
+		}
+
 		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
 	}
 }
