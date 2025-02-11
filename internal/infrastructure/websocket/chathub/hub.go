@@ -475,6 +475,47 @@ func (h *Hub) HandleMessage(message []byte) {
 		}
 
 		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
+	case actions.EditMessageAction:
+		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
+		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
+		messageID, _ := uuid.Parse(msg.Payload["message_id"].(string))
+		message := msg.Payload["new_message"].(string)
+
+		activeClient := h.GetActiveClient(userID)
+
+		newMsg, err := h.chatService.EditMessage(context.Background(), chatID, messageID, userID, message)
+		if err != nil {
+			if activeClient.IsStillConnected() {
+				activeClient.GetMessageFromServer([]byte(err.Error()))
+			}
+			return 
+		}
+
+		if activeClient.IsStillConnected() {
+			wsRes := websocketmessage.WsMessageResponse {
+				ChatActionResult: actions.Success,
+				Payload: map[string]interface{} {
+					"chat_id": chatID,
+					"sender_user_id": userID,
+					"message_id": messageID,
+					"new_message": newMsg,
+				},
+			}
+
+			go h.SendWsResponseToClient(activeClient, wsRes)
+		}
+
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.UserEditedMessageEvent,
+			Payload: map[string]interface{} {
+				"chat_id": chatID,
+				"sender_user_id": userID,
+				"message_id": messageID,
+				"new_message": newMsg,
+			},
+		}
+
+		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
 	}
 }
 
