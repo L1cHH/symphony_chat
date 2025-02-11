@@ -516,6 +516,44 @@ func (h *Hub) HandleMessage(message []byte) {
 		}
 
 		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
+	case actions.DeleteMessageAction:
+		chatID, _ := uuid.Parse(msg.Payload["chat_id"].(string))
+		userID, _ := uuid.Parse(msg.Payload["user_id"].(string))
+		messageID, _ := uuid.Parse(msg.Payload["message_id"].(string))
+
+		activeClient := h.GetActiveClient(userID)
+
+		err := h.chatService.DeleteMessage(context.Background(), chatID, messageID, userID)
+		if err != nil {
+			if activeClient.IsStillConnected() {
+				activeClient.GetMessageFromServer([]byte(err.Error()))
+			}
+			return
+		}
+
+		if activeClient.IsStillConnected() {
+			wsRes := websocketmessage.WsMessageResponse {
+				ChatActionResult: actions.Success,
+				Payload: map[string]interface{} {
+					"chat_id": chatID,
+					"sender_user_id": userID,
+					"message_id": messageID,
+				},
+			}
+
+			go h.SendWsResponseToClient(activeClient, wsRes)
+		}
+
+		wsEvent := websocketmessage.WsClientEvent {
+			EventType: actions.UserDeletedMessageEvent,
+			Payload: map[string]interface{} {
+				"chat_id": chatID,
+				"sender_user_id": userID,
+				"message_id": messageID,
+			},
+		}
+
+		go h.SendWsEventToChatClients(chatID, h.GetActiveClientsOfChat(chatID), wsEvent)
 	}
 }
 
